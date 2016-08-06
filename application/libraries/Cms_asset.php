@@ -60,22 +60,14 @@ class Cms_asset
         );
     }
 
-    public function add_themes_js($path, $theme, $layout = NULL)
+    public function add_themes_js($path, $theme)
     {
-        if (isset($layout)) {
-            $this->add_js(base_url('themes/' . $theme . '/assets/' . $layout . '/' . $path));
-        } else {
-            $this->add_js(base_url('themes/' . $theme . '/assets/' . $path));
-        }
+        $this->add_js(base_url('themes/' . $theme . '/assets/' . $path));
     }
 
-    public function add_themes_css($path, $theme, $layout = NULL)
+    public function add_themes_css($path, $theme)
     {
-        if (isset($layout)) {
-            $this->add_css(base_url('themes/' . $theme . '/assets/' . $layout . '/' . $path));
-        } else {
-            $this->add_css(base_url('themes/' . $theme . '/assets/' . $path));
-        }
+        $this->add_css(base_url('themes/' . $theme . '/assets/' . $path));
     }
 
     public function add_module_js($path, $module)
@@ -99,9 +91,9 @@ class Cms_asset
     }
 
     private function parse_path($path){
-        $this->ci->load->model('No_CMS_Model');        
+        $this->ci->load->model('no_cms_model');
         $used_theme = $this->ci->session->userdata('__cms_used_theme');
-        $path = $this->ci->No_CMS_Model->cms_parse_keyword($path);
+        $path = $this->ci->no_cms_model->cms_parse_keyword($path);
         return str_ireplace('{{ used_theme }}', $used_theme, $path);
     }
 
@@ -109,9 +101,29 @@ class Cms_asset
         // trim every line
         $content = explode(PHP_EOL, $content);
         $new_content = '';
+        // variables for html
+        $in_pre = FALSE;
+        $in_text_area = FALSE;
         foreach($content as $line){
-            $new_content .= trim($line);
-            if($mode == 'js' || stripos($line, '//') !== FALSE){
+            if($mode == 'html'){
+                // check pre and textarea status
+                if(stripos($line, '<pre') !== FALSE){
+                    $in_pre = TRUE;
+                }else if(stripos($line, '</pre>') !== FALSE){
+                    $in_pre = FALSE;
+                }else if(stripos($line, '<textarea') !== FALSE){
+                    $in_text_area = TRUE;
+                }else if(stripos($line, '</textarea>') !== FALSE){
+                    $in_text_area = FALSE;
+                }
+            }
+            // don't trim if it is in pre in html mode
+            if($mode == 'html' && ($in_pre || $in_text_area)){
+                $new_content .= $line;
+            }else{
+                $new_content .= trim($line);
+            }
+            if($mode == 'js' || $mode == 'html' || stripos($line, '//') !== FALSE){
                 $new_content .= PHP_EOL;
             }
         }
@@ -131,18 +143,30 @@ class Cms_asset
                 $path_part = explode('/', $path);
                 $file_name = $path_part[count($path_part)-1];
                 $dir_path  = substr($path, 0, strlen($path)-strlen($file_name));
+                /*
                 if(in_array($dir_path.$file_name, $this->skipped_resources)){
                     $type = 'skipped';
                     $dir_path = str_ireplace($base_url, FCPATH, $dir_path);
-                    $last_modified_date = date('YmdHis',filemtime($dir_path.$file_name));
+                    if(file_exists($dir_path.$file_name)){
+                        $last_modified_date = date('YmdHis',filemtime($dir_path.$file_name));
+                    }else{
+                        $last_modified_date = 0;
+                    }
                 }else if(strpos($dir_path, $base_url) === 0){
                     $type = 'external';
                     $dir_path = str_ireplace($base_url, FCPATH, $dir_path);
-                    $last_modified_date = date('YmdHis',filemtime($dir_path.$file_name));
+                    if(file_exists($dir_path.$file_name)){
+                        $last_modified_date = date('YmdHis',filemtime($dir_path.$file_name));
+                    }else{
+                        $last_modified_date = 0;
+                    }
                 }else{
                     $type = 'cdn';
                     $last_modified_date = 0;
-                }
+                }*/
+                $type = 'cdn';
+                $last_modified_date = 0;
+
                 if(count($compiled_resources)>0 && $compiled_resources[$last_index]['type'] == $type && $compiled_resources[$last_index]['dir_path'] == $dir_path){
                     $compiled_resources[$last_index]['file_name'][] = $file_name;
                     if($last_modified_date > $compiled_resources[$last_index]['modified_time']){
@@ -178,7 +202,7 @@ class Cms_asset
         $str = '';
         foreach($compiled_resources as $compiled_resource){
             if($compiled_resource['type'] == 'internal'){
-                if($mode == 'js'){                    
+                if($mode == 'js'){
                     $str .= '<script type="text/javascript">'.$compiled_resource['content'].'</script>';
                 }else{
                     $str .= '<style type="text/css">'.$compiled_resource['content'].'</style>';
@@ -210,17 +234,23 @@ class Cms_asset
                         $content[] = $this->minify(file_get_contents($dir_path.$file_name), $mode);
                     }
                     $content = implode(PHP_EOL, $content);
-                    file_put_contents($dir_path.$compiled_file_name, $content);  
+                    file_put_contents($dir_path.$compiled_file_name, $content);
                 }
                 // read the file
-                $content = '';
-                if(filesize($dir_path.$compiled_file_name) < 1024 && $content = file_get_contents($dir_path.$compiled_file_name) && strpos($content, '@import') === FALSE){
-                    if($mode == 'js'){
-                        $str .= '<script type="text/javascript">' . $content . '</script>';
-                    }else{
-                        $str .= '<style type="text/css">' . $content . '</style>';
+                $into_internal = FALSE;
+                if(filesize($dir_path.$compiled_file_name) < 1024){
+                    $content = file_get_contents($dir_path.$compiled_file_name);
+                    if(strpos($content, '@import') === FALSE){
+                        if($mode == 'js'){
+                            $str .= '<script type="text/javascript">' . $content . '</script>';
+                        }else{
+                            $str .= '<style type="text/css">' . $content . '</style>';
+                        }
+                        $into_internal = TRUE;
                     }
-                }else{
+                }
+                // if more than 1024 byte
+                if(!$into_internal){
                     // change fcpath
                     $dir_path = str_ireplace(FCPATH, $real_base_url, $dir_path);
                     if($mode == 'js'){
@@ -235,8 +265,8 @@ class Cms_asset
     }
 
     public function compile_css($combine = TRUE)
-    {        
-        if ($combine) {            
+    {
+        if ($combine) {
             $return = $this->combine($this->styles, 'css');
             $this->styles = array();
         } else {
@@ -248,14 +278,14 @@ class Cms_asset
                     $return .= '<style type="text/css">' . $style['content'] . '</style>';
                 }
             }
-            $this->styles = array();            
+            $this->styles = array();
         }
         return $return;
     }
 
     public function compile_js($combine = TRUE)
     {
-        if ($combine) {            
+        if ($combine) {
             $return = $this->combine($this->scripts, 'js');
             $this->scripts = array();
         } else {
@@ -267,8 +297,8 @@ class Cms_asset
                     $return .= '<script type="text/javascript">' . $script['content'] . '</script>';
                 }
             }
-            $this->scripts = array();            
+            $this->scripts = array();
         }
-        return $return;        
+        return $return;
     }
 }

@@ -4,8 +4,14 @@ class Grocery_crud_generic_model  extends Grocery_crud_model  {
     public $ESCAPE_CHAR = '"';
     public $CAPABLE_CONCAT = TRUE;
 
+    protected static $__FIELD_TYPES;
+
     public function __construct(){
         parent::__construct();
+        // set field_types
+        if (self::$__FIELD_TYPES == null) {
+            self::$__FIELD_TYPES = array();
+        }
         // this is a simple hack to get ESCAPE_CHAR
         $test = $this->protect_identifiers('t');
         $first_char = substr($test,0,1);
@@ -14,8 +20,18 @@ class Grocery_crud_generic_model  extends Grocery_crud_model  {
         }
     }
 
+    protected function _preg_replace_callback_identifiers($arr){
+        return '{'. $this->db->protect_identifiers($arr[1]).'}';
+    }
+
     public function protect_identifiers($value)
     {
+        $use_template = strpos($value,'{') !== false;
+        if($use_template){
+            return preg_replace_callback('/\{(.*?)\}/si',
+                array($this, '_preg_replace_callback_identifiers'),
+                $value);
+        }
         return $this->db->protect_identifiers($value);
     }
 
@@ -48,8 +64,8 @@ class Grocery_crud_generic_model  extends Grocery_crud_model  {
                         "}"
                     ),
                     array(
-                        "' || COALESCE(".$replacement,
-                        ", '') || '"
+                        "' || COALESCE(".$prefix_replacement,
+                        $suffix_replacement.", '') || '"
                     ),
                     str_replace("'","\\'",$template)
                 ).
@@ -113,16 +129,14 @@ class Grocery_crud_generic_model  extends Grocery_crud_model  {
         $this->db->select($select, false);
         $results = $this->db->get($this->table_name)->result();
 
-        
         //log_message('error', $this->db->last_query());
-        
+
         // add information from additional_fields
         for($i=0; $i<count($results); $i++){
             foreach($additional_fields as $alias=>$real_field){
                 $results[$i]->{$alias} = $results[$i]->{$real_field};
             }
         }
-
         return $results;
     }
 
@@ -149,7 +163,6 @@ class Grocery_crud_generic_model  extends Grocery_crud_model  {
             {
                 $field .= $this->protect_identifiers($selection_table.'.'.$title_field_selection_table);
             }
-
             //Sorry Codeigniter but you cannot help me with the subquery!
             $select .= ", ".
               $this->build_relation_n_n_subquery($field, $selection_table, $relation_table, $primary_key_alias_to_selection_table, $primary_key_selection_table, $primary_key_alias_to_this_table, $field_name);
@@ -363,6 +376,11 @@ class Grocery_crud_generic_model  extends Grocery_crud_model  {
 
     function get_field_types($table_name)
     {
+        // take from cache if it is exists
+        if(array_key_exists($table_name, self::$__FIELD_TYPES)){
+            return self::$__FIELD_TYPES[$table_name];
+        }
+
         $results = $this->db->field_data($table_name);
         // some driver doesn't provide primary_key information
         foreach($results as $num => $row)
@@ -372,6 +390,8 @@ class Grocery_crud_generic_model  extends Grocery_crud_model  {
                 $results[$num]->primary_key = 0;
             }
         }
+        // save to cache
+        self::$__FIELD_TYPES[$table_name] = $results;
         return $results;
     }
 
@@ -433,16 +453,32 @@ class Grocery_crud_generic_model  extends Grocery_crud_model  {
     function get_edit_values($primary_key_value)
     {
         $result = parent::get_edit_values($primary_key_value);
+        if($result === NULL){
+            $result = new stdClass();
+        }
         // some driver like postgresql doesn't return string
         foreach($result as $key => $value) {
             $result->$key = (string)$value;
         }
+
         return $result;
     }
 
     function having($key, $value = NULL, $escape = TRUE)
     {
         $this->db->having( $key, $value, $escape);
+    }
+
+    function db_relation_n_n_update($field_info, $post_data ,$main_primary_key){
+        // addition by gofrendi: eliminate the possibility of empty primary key on n_n relation
+        $new_post_data = array();
+        foreach($post_data as $primary_key_value){
+            if($primary_key_value != ''){
+                $new_post_data[] = $primary_key_value;
+            }
+        }
+        $post_data = $new_post_data;
+        return parent::db_relation_n_n_update($field_info, $post_data, $main_primary_key);
     }
 
 }

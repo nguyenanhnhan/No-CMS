@@ -1,5 +1,4 @@
 <?php
-
     $this->set_css($this->default_theme_path.'/no-flexigrid/css/flexigrid.css');
     $this->set_js_lib($this->default_theme_path.'/no-flexigrid/js/jquery.form.js');
     $this->set_js_config($this->default_theme_path.'/no-flexigrid/js/flexigrid-add.js');
@@ -7,6 +6,23 @@
 
     $this->set_js_lib($this->default_javascript_path.'/jquery_plugins/jquery.noty.js');
     $this->set_js_lib($this->default_javascript_path.'/jquery_plugins/config/jquery.noty.config.js');
+
+    if(isset($_GET['from'])){
+		if(strpos($list_url, '&from=') === FALSE && strpos($list_url, '?from=') === FALSE){
+    		if(strpos($list_url, '?') !== FALSE){
+    			$list_url .= '&from='.$_GET['from'];
+    		}else{
+    			$list_url .= '?from='.$_GET['from'];
+    		}
+        }
+        if(strpos($insert_url, '&from=') === FALSE && strpos($insert_url, '?from=') === FALSE){
+    		if(strpos($insert_url, '?') !== FALSE){
+    			$insert_url .= '&from='.$_GET['from'];
+    		}else{
+    			$insert_url .= '?from='.$_GET['from'];
+    		}
+        }
+	}
 ?>
 <div class="flexigrid crud-form" data-unique-hash="<?php echo $unique_hash; ?>">
     <div class="mDiv">
@@ -17,13 +33,14 @@
             <div class='clear'></div>
         </div>
     </div>
-<div id="main-table-loading"><img id="img-loader" src="<?=base_url('assets/nocms/images/ajax-loader.gif')?>" /></div>
+<div id="main-table-loading"><img id="img-loader" src="<?php echo base_url('assets/nocms/images/ajax-loader.gif'); ?>" /></div>
 <div id='main-table-box' style="display:none">
     <?php echo form_open( $insert_url, 'method="post" id="crudForm" autocomplete="off" enctype="multipart/form-data"'); ?>
     <div class='form-div form-horizontal row'>
         <?php
             $this->tabs = isset($this->tabs)? $this->tabs : NULL;
-            $this->outside_tab = isset($this->outside_tab)? $this->outside_tab : 0;                
+            $this->tab_glyphicons = isset($this->tab_glyphicons)? $this->tab_glyphicons : NULL;
+            $this->outside_tab = isset($this->outside_tab)? $this->outside_tab : 0;
             $counter = 0;
             $tab_index=-1;
             $tab_item_counter = 0;
@@ -44,7 +61,11 @@
                             echo '<ul class="nav nav-tabs" role="tablist">';
                             $active = 'active';
                             foreach($this->tabs as $key=>$val){
-                                echo '<li class="'.$active.'"><a href="#'.str_replace(' ','',$key).'" role="tab" data-toggle="tab">'.$key.'</a></li>';
+                                $caption = $key;
+                                if(array_key_exists($key, $this->tab_glyphicons)){
+                                    $caption = '<i class ="glyphicon ' . $this->tab_glyphicons[$key] . '"></i>&nbsp;' . $key;
+                                }
+                                echo '<li class="'.$active.'"><a href="#'.str_replace(' ','',$key).'" role="tab" data-toggle="tab">{{ language:'.$caption.' }}</a></li>';
                                 $active = '';
                             }
                             echo '</ul>';
@@ -58,9 +79,9 @@
                             $width_accumulator = 0;
 
                             echo '</div>';
-                            echo '<div class="tab-pane col-md-12" id="'.str_replace(' ','',$tab_key[$tab_index]).'">';                                
-                        }                            
-                    }                        
+                            echo '<div class="tab-pane col-md-12" id="'.str_replace(' ','',$tab_key[$tab_index]).'">';
+                        }
+                    }
                 }
                 $even_odd = $counter % 2 == 0 ? 'odd' : 'even';
                 $counter++;
@@ -77,17 +98,17 @@
                 }else if(isset($this->field_quarter_width) && in_array($field->field_name, $this->field_quarter_width)){
                     $box_width = 3;
                     $label_width = 12;
-                    $label_width = 12;
+                    $input_width = 12;
                     $width_addition = 0.25;
                 }else if(isset($this->field_one_third_width) && in_array($field->field_name, $this->field_one_third_width)){
                     $box_width = 4;
-                    $label_width = 12;
-                    $label_width = 12;
+                    $label_width = 6;
+                    $input_width = 6;
                     $width_addition = 0.33;
                 }else if(isset($this->field_two_third_width) && in_array($field->field_name, $this->field_two_third_width)){
                     $box_width = 8;
                     $label_width = 3;
-                    $label_width = 9;
+                    $input_width = 9;
                     $width_addition = 0.67;
                 }else{
                     $box_width = 12;
@@ -102,12 +123,25 @@
                 }else{
                     $width_accumulator += $width_addition;
                 }
+
+                $form_field_box_class = '';
+                $input_box_class = '';
+                if($width_addition < 1){
+                    if($width_accumulator == $width_addition){
+                        //$input_box_class .= ' first-input-box';
+                        $form_field_box_class .= ' first-form-field-box';
+                    }
+                    if($width_accumulator >= 0.9 && $width_addition < 1){
+                        $form_field_box_class .= ' last-form-field-box';
+                        $input_box_class .= ' last-input-box';
+                    }
+                }
         ?>
-                    <div class='form-field-box form-group col-md-<?=$box_width?> <?php echo $even_odd?>' id="<?php echo $field->field_name; ?>_field_box">
-                        <label for="field-<?=$field->field_name?>" class='form-display-as-box col-md-<?=$label_width?>' id="<?php echo $field->field_name; ?>_display_as_box">
+                    <div class='form-field-box form-group col-xs-12 col-md-<?php echo $box_width; ?> <?php echo $even_odd; ?> <?php echo $form_field_box_class; ?>' id="<?php echo $field->field_name; ?>_field_box">
+                        <label for="field-<?php echo $field->field_name; ?>" class='form-display-as-box col-xs-12 col-md-<?php echo $label_width; ?>' id="<?php echo $field->field_name; ?>_display_as_box">
                             {{ language:<?php echo $input_fields[$field->field_name]->display_as; ?> }}<?php echo ($input_fields[$field->field_name]->required)? "<span class='required'>*</span> " : ""; ?>
                         </label>
-                        <div class='form-input-box col-md-<?=$input_width?>' id="<?php echo $field->field_name; ?>_input_box">
+                        <div class='form-input-box col-xs-12 col-md-<?php echo $input_width; ?> <?php echo $input_box_class; ?>' id="<?php echo $field->field_name; ?>_input_box">
                             <?php echo $input_fields[$field->field_name]->input?>
                         </div>
                     </div>
@@ -132,7 +166,7 @@
             <div id='report-error' class='report-div error alert alert-danger container col-md-12'></div>
             <div id='report-success' class='report-div success alert alert-success container col-md-12'></div>
         </div>
-        <div class="pDiv container col-md-12">
+        <div class="pDiv col-md-12">
             <div class='form-button-box'>
                 <input id="form-button-save" type='submit' value='<?php echo $this->l('form_save'); ?>'  class="btn btn-default btn-large"/>
             </div>

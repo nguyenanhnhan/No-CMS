@@ -1,143 +1,117 @@
 <?php if ( ! defined('BASEPATH')) exit('No direct script access allowed');
 /**
- * Installation script for contact_us
+ * Installation script for new_contact_us
  *
  * @author No-CMS Module Generator
  */
 class Info extends CMS_Module {
-    /////////////////////////////////////////////////////////////////////////////
-    // Default Functions
-    /////////////////////////////////////////////////////////////////////////////
 
-    // ACTIVATION
-    protected function do_activate(){
-        $this->remove_all();
-        $this->build_all();
-    }
+    //////////////////////////////////////////////////////////////////////////////
+    // NAVIGATIONS
+    //////////////////////////////////////////////////////////////////////////////
+    protected $NAVIGATIONS = array(
+            // New Contact Us
+            array(
+                'navigation_name'   => 'index',
+                'url'               => 'contact_us',
+                'authorization_id'  => PRIV_EVERYONE,
+                'default_layout'    => NULL,
+                'title'             => 'Contact Us',
+                'parent_name'       => NULL,
+                'index'             => NULL,
+                'description'       => NULL,
+                'bootstrap_glyph'   => NULL,
+                'notification_url'  => '{{ MODULE_PATH }}/notif/new_message',
+                'hidden'            => NULL,
+                'static_content'    => NULL,
+            ),
 
-    // DEACTIVATION
-    protected function do_deactivate(){
-        $this->backup_database(array(
-            $this->cms_complete_table_name('message')
-        ));
-        $this->remove_all();
-    }
-
-    // UPGRADE
-    protected function do_upgrade($old_version){
-        // Add your migration logic here.
-    }
-
-    // OVERRIDE THIS FUNCTION TO PROVIDE "Module Setting" FEATURE
-    public function setting(){
-        $module_directory = $this->cms_module_path();
-        $data = array();
-        $data['IS_ACTIVE'] = $this->IS_ACTIVE;
-        $data['module_directory'] = $module_directory;
-        if(!$this->IS_ACTIVE){
-            // get setting
-            $module_table_prefix = $this->input->post('module_table_prefix');
-            $module_prefix       = $this->input->post('module_prefix');
-            // set values
-            if(isset($module_table_prefix) && $module_table_prefix !== FALSE){
-                cms_module_config($module_directory, 'module_table_prefix', $module_table_prefix);
-            }
-            if(isset($module_prefix) && $module_prefix !== FALSE){
-                cms_module_prefix($module_directory, $module_prefix);
-            }
-            // get values
-            $data['module_table_prefix'] = cms_module_config($module_directory, 'module_table_prefix');
-            $data['module_prefix']       = cms_module_prefix($module_directory);
-        }
-        $this->view($module_directory.'/install_setting', $data, 'main_module_management');
-    }
-
-    /////////////////////////////////////////////////////////////////////////////
-    // Private Functions
-    /////////////////////////////////////////////////////////////////////////////
-
-    // REMOVE ALL NAVIGATIONS, WIDGETS, AND PRIVILEGES
-    private function remove_all(){
-        $module_path = $this->cms_module_path();
-
-        $this->cms_remove_quicklink($this->cms_complete_navigation_name('index'));
-
-        // remove navigations
-        $this->cms_remove_navigation($this->cms_complete_navigation_name('manage_message'));
-
-
-        // remove parent of all navigations
-        $this->cms_remove_navigation($this->cms_complete_navigation_name('index'));
-        
-        // drop tables
-        $this->dbforge->drop_table($this->cms_complete_table_name('message'), TRUE);
-    }
-
-    // CREATE ALL NAVIGATIONS, WIDGETS, AND PRIVILEGES
-    private function build_all(){
-        $module_path = $this->cms_module_path();
-
-        // parent of all navigations
-        $this->cms_add_navigation($this->cms_complete_navigation_name('index'), 'Contact Us',
-            $module_path.'/contact_us', $this->PRIV_EVERYONE, NULL, NULL, 'Contact Us Menu', 'glyphicon-envelope');
-
-        // add navigations
-        $this->cms_add_navigation($this->cms_complete_navigation_name('manage_message'), 'Manage Message',
-            $module_path.'/manage_message', $this->PRIV_AUTHORIZED, $this->cms_complete_navigation_name('index')
         );
 
-        $this->cms_add_quicklink($this->cms_complete_navigation_name('index'));
+    protected $BACKEND_NAVIGATIONS = array(
+            // Manage Message
+            array(
+                'entity_name'       => 'message',
+                'url'               => 'manage_message',
+                'authorization_id'  => PRIV_AUTHORIZED,
+                'default_layout'    => 'default-one-column',
+                'title'             => 'Manage Message',
+                'parent_name'       => 'index',
+                'index'             => NULL,
+                'description'       => NULL,
+                'bootstrap_glyph'   => NULL,
+                'notification_url'  => '{{ MODULE_PATH }}/notif/new_message',
+                'hidden'            => NULL,
+                'static_content'    => NULL,
+            ),
 
-        
-        // create tables
+        );
+
+    //////////////////////////////////////////////////////////////////////////////
+    // CONFIGURATIONS
+    //////////////////////////////////////////////////////////////////////////////
+    protected $CONFIGS = array();
+
+    //////////////////////////////////////////////////////////////////////////////
+    // PRIVILEGES
+    //////////////////////////////////////////////////////////////////////////////
+    protected $PRIVILEGES = array();
+
+    //////////////////////////////////////////////////////////////////////////////
+    // GROUPS
+    //////////////////////////////////////////////////////////////////////////////
+    protected $GROUPS = array(
+            array('group_name' => 'Contact Us Manager', 'description' => 'New Contact Us Manager'),
+        );
+    protected $GROUP_NAVIGATIONS = array();
+    protected $GROUP_BACKEND_NAVIGATIONS = array(
+            'Contact Us Manager' => array('message')
+        );
+    protected $GROUP_PRIVILEGES = array();
+    protected $GROUP_BACKEND_PRIVILEGES = array(
+            'Contact Us Manager' => array(
+                'message' => array('read', 'add', 'edit', 'delete', 'list', 'back_to_list', 'print', 'export'),
+            )
+        );
+
+    //////////////////////////////////////////////////////////////////////////////
+    // TABLES and DATA
+    //////////////////////////////////////////////////////////////////////////////
+    protected $TABLES = array(
         // message
-        $fields = array(
-            'id'=> $this->TYPE_INT_UNSIGNED_AUTO_INCREMENT,
-            'name'=> array("type"=>'varchar', "constraint"=>50, "null"=>TRUE),
-            'content'=> array("type"=>'text', "null"=>TRUE),
-            'email'=> array("type"=>'varchar', "constraint"=>50, "null"=>TRUE)
-        );
-        $this->dbforge->add_field($fields);
-        $this->dbforge->add_key('id', TRUE);
-        $this->dbforge->create_table($this->cms_complete_table_name('message'));
+        'message' => array(
+            'key'    => 'id',
+            'fields' => array(
+                'id'        => 'TYPE_INT_UNSIGNED_AUTO_INCREMENT',
+                'name'      => array("type" => 'varchar',    "constraint" => 50,  "null" => TRUE),
+                'content'   => array("type" => 'text',       "null" => TRUE),
+                'email'     => array("type" => 'varchar',    "constraint" => 50,  "null" => TRUE),
+                'read'      => array("type" => 'int',        "constraint" => 10,  "null" => TRUE, "default" => 0),
+            ),
+        ),
+    );
+    protected $DATA = array(
 
-        
+    );
+
+    //////////////////////////////////////////////////////////////////////////////
+    // ACTIVATION
+    //////////////////////////////////////////////////////////////////////////////
+    public function do_activate(){
+        $this->cms_add_quicklink($this->n('index'));
+        // TODO : write your module activation script here
     }
 
-    // EXPORT DATABASE
-    private function backup_database($table_names, $limit = 100){         
-        if($this->db->platform() == 'mysql' || $this->db->platform() == 'mysqli'){
-            $module_path = $this->cms_module_path();
-            $this->load->dbutil();
-            $sql = '';
-            
-            // create DROP TABLE syntax
-            for($i=count($table_names)-1; $i>=0; $i--){
-                $table_name = $table_names[$i];
-                $sql .= 'DROP TABLE IF EXISTS `'.$table_name.'`; '.PHP_EOL;
-            }
-            if($sql !='')$sql.= PHP_EOL;
-
-            // create CREATE TABLE and INSERT syntax 
-            
-            $prefs = array(
-                    'tables'      => $table_names,
-                    'ignore'      => array(),
-                    'format'      => 'txt',
-                    'filename'    => 'mybackup.sql',
-                    'add_drop'    => FALSE,
-                    'add_insert'  => TRUE,
-                    'newline'     => PHP_EOL
-                  );
-            $sql.= @$this->dbutil->backup($prefs);        
-
-            //write file
-            $file_name = 'backup_'.date('Y-m-d_G-i-s').'.sql';
-            file_put_contents(
-                    BASEPATH.'../modules/'.$module_path.'/assets/db/'.$file_name,
-                    $sql
-                );
-        }       
-
+    //////////////////////////////////////////////////////////////////////////////
+    // DEACTIVATION
+    //////////////////////////////////////////////////////////////////////////////
+    public function do_deactivate(){
+        // TODO : write your module deactivation script here
     }
+
+    //////////////////////////////////////////////////////////////////////////////
+    // UPGRADE
+    //////////////////////////////////////////////////////////////////////////////
+    // TODO: write your upgrade function: do_upgrade_to_x_x_x
+
 }

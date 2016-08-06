@@ -8,10 +8,10 @@ class Blog extends CMS_Secure_Controller {
 
     protected function do_override_url_map($URL_MAP){
         $module_path = $this->cms_module_path();
-        $URL_MAP[$module_path] = $this->cms_complete_navigation_name('index');
-        $URL_MAP[$module_path.'/blog'] = $this->cms_complete_navigation_name('index');
-        $URL_MAP[$module_path.'/get_data'] = $this->cms_complete_navigation_name('index');
-        $URL_MAP[$module_path.'/blog/get_data'] = $this->cms_complete_navigation_name('index');
+        $URL_MAP[$module_path] = $this->n('index');
+        $URL_MAP[$module_path.'/blog'] = $this->n('index');
+        $URL_MAP[$module_path.'/get_data'] = $this->n('index');
+        $URL_MAP[$module_path.'/blog/get_data'] = $this->n('index');
         return $URL_MAP;
     }
 
@@ -26,9 +26,21 @@ class Blog extends CMS_Secure_Controller {
         return $str;
     }
 
-    public function index($article_url = NULL){
+    public function index($article_url = NULL, $filter_category = NULL, $filter_archive = NULL, $filter_keyword = NULL){
         $module_path = $this->cms_module_path();
         $this->load->model($module_path.'/article_model');
+
+        $article_url = $article_url == ''? NULL : $article_url;
+        $filter_category = $this->input->get('category') == NULL?
+            $filter_category : $this->input->get('category');
+        $filter_archive  = $this->input->get('archive')  == NULL?
+            $filter_archive : $this->input->get('archive');
+        $filter_keyword  = $this->input->get('keyword')  == NULL?
+            $filter_keyword : $this->input->get('keyword');
+        $filter_category = $filter_category == ''? NULL : $filter_category;
+        $filter_archive  = $filter_archive  == ''? NULL : $filter_archive;
+        $filter_keyword  = $filter_keyword  == ''? NULL : $filter_keyword;
+
 
         // the honey_pot, every fake input should be empty
         $honey_pot_pass = (strlen($this->input->post('name', ''))==0) &&
@@ -82,23 +94,24 @@ class Blog extends CMS_Secure_Controller {
 
         $first_data = NULL;
         if($article_url === NULL){
-            $first_data = Modules::run($module_path.'/blog/get_data', 
-                    $this->input->get('keyword'),
+            $first_data = Modules::run($module_path.'/blog/get_data',
+                    $filter_keyword,
                     0,
-                    $this->input->get('category'),
-                    $this->input->get('archive')
+                    $filter_category,
+                    $filter_archive
                 );
         }
 
+        $user_group = $this->cms_user_group();
         $data = array(
-            'submenu_screen' => $this->cms_submenu_screen($this->cms_complete_navigation_name('index')),
-            'allow_navigate_backend' => $this->cms_allow_navigate($this->cms_complete_navigation_name('manage_article')),
+            'submenu_screen' => $this->cms_submenu_screen($this->n('index')),
+            'allow_navigate_backend' => $this->cms_allow_navigate($this->n('manage_article')),
             'backend_url' => site_url($this->cms_module_path().'/manage_article/index'),
             'first_data'=> $first_data,
             'categories'=>$this->article_model->get_available_category(),
-            'chosen_category' => $this->input->get('category'),
-            'archive' => $this->input->get('archive'),
-            'keyword' => $this->input->get('keyword'),
+            'chosen_category' => $filter_category,
+            'archive' => $filter_archive,
+            'keyword' => $filter_keyword,
             'module_path' => $this->cms_module_path(),
             'is_user_login' => $this->cms_user_id()>0,
             'secret_code' => $secret_code,
@@ -115,33 +128,55 @@ class Blog extends CMS_Secure_Controller {
             'form_url'=> $this->cms_module_path() == 'blog'?
                 site_url($this->cms_module_path().'/index/'.$article_url.'/#comment-form') :
                 site_url($this->cms_module_path().'/blog/index/'.$article_url.'/#comment-form'),
+            'category_route_exists' => $this->cms_route_key_exists('blog/category/(:any)'),
+            'can_publish' => in_array('Blog Editor', $user_group) || in_array('Blog Author', $user_group) || $this->cms_user_is_super_admin(),
         );
 
         $config = array();
-        if(isset($article_url)){
+        if(isset($article_url) && $article_url != ''){
             $article = $this->article_model->get_single_article($article_url);
             $data['article'] = $article;
             $config['title'] = $article['title'];
             $config['keyword'] = $article['keyword'];
             $config['description'] = $article['description'];
             $config['author'] = $article['author'];
-            // add visited
-            $query = $this->db->select('visited')
-                ->from($this->cms_complete_table_name('article'))
-                ->where('article_id', $article['id'])
-                ->get();            
-            $row = $query->row();
-            $visited = $row->visited;
-            if($visited === NULL || $visited == ''){
-                $visited = 0;
+            $config['type'] = 'article';
+            $config['twitter_card'] = 'summary';
+            // if article has several photos, take the first one as meta image
+            if(count($article['photos'])>0){
+                $photo = $article['photos'][0];
+                $config['image'] = base_url('modules/'.$module_path.'/assets/uploads/'.$photo['url']);
+            }else{ // if article doesn't have any photo, take it from article content
+                preg_match('/<img.*?src="(.*?)"/', $article['content'], $matches);
+                if(count($matches) == 2){
+                    $image = $matches[1];
+                    $image = $this->cms_parse_keyword($image);
+                    if(strpos($image, 'http') !== 0){
+                        $image = base_url($image);
+                    }
+                    $config['image'] = $image;
+                }
             }
-            $this->db->update($this->cms_complete_table_name('article'),
-                array('visited'=>$visited+1),
-                array('article_id'=>$article['id']));
+
+            $article_id = $article['id'];
+            if(!isset($_SESSION['__blog_visited'])){
+                $_SESSION['__blog_visited'] = array();
+            }
+            if(!in_array($article_id, $_SESSION['__blog_visited'])){
+                $_SESSION['__blog_visited'][] = $article_id;
+                // add visited
+                $visited = $article['visited'];
+                if($visited === NULL || $visited == ''){
+                    $visited = 0;
+                }
+                $this->db->update($this->t('article'),
+                    array('visited'=>$visited+1),
+                    array('article_id'=>$article['id']));
+            }
         }
 
         $this->view($this->cms_module_path().'/browse_article_view',$data,
-            $this->cms_complete_navigation_name('index'), $config);
+            $this->n('index'), $config);
     }
 
     public function get_data($keyword = '', $page = 0, $category = '', $archive = ''){
@@ -160,16 +195,75 @@ class Blog extends CMS_Secure_Controller {
         // get data from model
         $this->load->model($this->cms_module_path().'/article_model');
         $result = $this->article_model->get_articles($page, $limit, $category, $archive, $keyword);
+        // get max slid image from configuration. The default is 6
+        $blog_max_slide_image = $this->cms_get_config('blog_max_slide_image');
+        if(!is_numeric($blog_max_slide_image) || $blog_max_slide_image < 0){
+            $blog_max_slide_image = 6;
+        }
         $data = array(
             'articles'=>$result,
-            'allow_navigate_backend' => $this->cms_allow_navigate($this->cms_complete_navigation_name('manage_article')),
+            'blog_max_slide_image' => $blog_max_slide_image,
+            'allow_navigate_backend' => $this->cms_allow_navigate($this->n('manage_article')),
             'backend_url' => site_url($this->cms_module_path().'/manage_article/index'),
             'is_super_admin' => $this->cms_user_id() == 1 || in_array(1, $this->cms_user_group_id()),
             'module_path' => $this->cms_module_path(),
             'user_id' => $this->cms_user_id(),
+            'article_route_exists'=>$this->cms_route_key_exists('blog/(:any)\.html'),
+            'category_route_exists' => $this->cms_route_key_exists('blog/category/(:any)'),
         );
         $config = array('only_content'=>TRUE);
         $this->view($this->cms_module_path().'/browse_article_partial_view',$data,
-           $this->cms_complete_navigation_name('index'), $config);
+           $this->n('index'), $config);
+    }
+
+    public function quick_write(){
+        if($this->cms_user_id() < 1){return NULL;}
+        $title   = $this->input->post('title');
+        $content = $this->input->post('content');
+        $status  = $this->input->post('status');
+        // all data must valid
+        if($title == '' || $content == '' || !in_array($status, array('published', 'draft'))){
+            return NULL;
+        }
+        $this->load->model('blog/article_model');
+        // automatic data
+        $date    = date('Y-m-d H:i:s');
+        $url     = urlencode(url_title($this->cms_parse_keyword($title)));
+        $count_url = $this->article_model->get_count_article_url($url);
+        if($count_url>0){
+            $index = $count_url;
+            while($this->article_model->get_count_article_url($url.'_'.$index)>0){
+                $index++;
+            }
+            $url .= '_'.$index;
+        };
+        $author_user_id = $this->cms_user_id();
+        // insert article
+        $this->db->insert($this->t('article'), array(
+                'article_title' => $title,
+                'content' => $content,
+                'status' => $status,
+                'date' => $date,
+                'article_url' => $url,
+                'status' => $status,
+                'author_user_id' => $author_user_id,
+            ));
+    }
+
+    public function export(){
+        echo 'test';
+    }
+
+    public function import(){
+        $module_path = $this->cms_module_path();
+        $data = array('success' => TRUE, 'message'=> '');
+        // get content
+        if(isset($_FILES['file'])){
+            $this->load->model($module_path.'/wp_exim');
+            $content = file_get_contents($_FILES['file']['tmp_name']);
+            $data = $this->wp_exim->import($content);
+        }
+        // show the content
+        $this->view($module_path.'/import', $data, $this->n('import'));
     }
 }

@@ -11,7 +11,8 @@
  * @version    	1.0
  * @author     	-
  */
-class Extended_grocery_crud extends grocery_crud{
+
+class Extended_grocery_crud extends Grocery_CRUD{
 
     public $form_validation;
 	protected $_ci = null;
@@ -27,12 +28,23 @@ class Extended_grocery_crud extends grocery_crud{
 	protected $callback_delete_ext=array();
 	protected $callback_post_render=array();
 
+    protected $callback_show_edit = NULL;
+    protected $callback_show_delete = NULL;
+
     protected $outside_tab       = 0;
     protected $tabs              = NULL;
+    protected $tab_glyphicons    = array();
     protected $field_half_width  = array();
     protected $field_one_third_width = array();
     protected $field_two_third_width = array();
     protected $field_quarter_width = array();
+
+    /* Make these accessible */
+    public $basic_db_table;
+    public $columns;
+    public $add_fields;
+    public $edit_fields;
+    public $display_as;
 
     /* The unsetters */
     public $unset_texteditor     = array();
@@ -54,9 +66,9 @@ class Extended_grocery_crud extends grocery_crud{
     /* Added by Go Frendi. to modify search form, do this:
     $crud->unset_default_search();
     $crud->search_form_components = '<input name=....';
-    */ 
+    */
     public $unset_default_search   = false;
-    public $search_form_components = '';    
+    public $search_form_components = '';
 
     // fix issue http://www.grocerycrud.com/forums/topic/1975-bug-in-the-search/
     protected $unsearchable_field = array();
@@ -65,11 +77,25 @@ class Extended_grocery_crud extends grocery_crud{
         parent::__construct();
         $this->_ci = &get_instance();
         // resolve HMVC set rule callback problem
-        //$this->form_validation = $this->_ci->form_validation;
+        $this->form_validation = $this->_ci->form_validation;
+    }
+
+    public function cms_lang($keyword){
+        if(property_exists($this->_ci, 'no_cms_autoupdate_model')){
+            return $this->_ci->no_cms_autoupdate_model->cms_lang($keyword);
+        }else if(property_exists($this->_ci, 'no_cms_model')){
+            return $this->_ci->no_cms_model->cms_lang($keyword);
+        }else{
+            return $keyword;
+        }
     }
 
     public function set_tabs($data){
         $this->tabs = $data;
+    }
+
+    public function set_tab_glyphicons($data){
+        $this->tab_glyphicons = $data;
     }
 
     public function set_outside_tab($data){
@@ -103,6 +129,21 @@ class Extended_grocery_crud extends grocery_crud{
         $this->tabs[$key] = $count;
     }
 
+    public function add_tab_glyphicon($glyphicon){
+        if($this->tab_glyphicons == NULL){
+            $this->tab_glyphicons = array();
+        }
+        $this->tab_glyphicons[$key] = $glyphicon;
+    }
+
+    public function unset_default_search()
+    {
+        $this->unset_default_search = true;
+
+        return $this;
+    }
+
+    // OVERRIDE: set default model
     protected function set_default_Model()
     {
         $db_driver = $this->_ci->db->platform();
@@ -120,176 +161,396 @@ class Extended_grocery_crud extends grocery_crud{
         }
     }
 
+    // OVERRIDE: allow html to be shown
     protected function _trim_print_string($value)
     {
         return $value;
-        /*
-        $value = str_replace(array("&nbsp;","&amp;","&gt;","&lt;"),array(" ","&",">","<"),$value);
-
-        //If the value has only spaces and nothing more then add the whitespace html character
-        if(str_replace(" ","",$value) == "")
-            $value = "&nbsp;";
-
-        return strip_tags($value);
-         */
     }
 
-    public function unset_default_search()
-    {
-        $this->unset_default_search = true;
+    // OVERRIDE: getListSuccessUrl
+    protected function getListSuccessUrl($primary_key = null)
+	{
+        $list_success_url = parent::getListSuccessUrl($primary_key);
+        if(isset($_GET['from'])){
+            if(strpos($list_success_url, '&from=') === FALSE && strpos($list_success_url, '?from=') === FALSE){
+        		// list "from" to "list_url"
+        		if(strpos($list_success_url, '?') !== FALSE){
+        			$list_success_url .= '&from='.$_GET['from'];
+        		}else{
+        			$list_success_url .= '?from='.$_GET['from'];
+        		}
+            }
+    	}
+        return $list_success_url;
+	}
 
-        return $this;
-    }
+    public function callback_show_edit($callback = null)
+	{
+		$this->callback_show_edit = $callback;
+		return $this;
+	}
+    public function callback_show_delete($callback = null)
+	{
+		$this->callback_show_delete = $callback;
+		return $this;
+	}
 
+    // OVERRIDE: unsearchable field, allow edit & allow delete
     protected function showList($ajax = false, $state_info = null)
-    {
-        $data = $this->get_common_data();
+	{
+		$data = $this->get_common_data();
 
-        $data->order_by     = $this->order_by;
+		$data->order_by 	= $this->order_by;
 
-        $data->types        = $this->get_field_types();
+		$data->types 		= $this->get_field_types();
 
-        $data->list = $this->get_list();
-        $data->list = $this->change_list($data->list , $data->types);
-        $data->list = $this->change_list_add_actions($data->list);
+		$data->list = $this->get_list();
+		$data->list = $this->change_list($data->list , $data->types);
+		$data->list = $this->change_list_add_actions($data->list);
 
-        $data->total_results = $this->get_total_results();
+		$data->total_results = $this->get_total_results();
 
-        $data->columns              = $this->get_columns();
+		$data->columns 				= $this->get_columns();
 
         // added by go frendi
         $data->unsearchable_field   = $this->unsearchable_field;
-        // end of addtion
-
-        $data->success_message      = $this->get_success_message_at_list($state_info);
-
-        $data->primary_key          = $this->get_primary_key();
-        $data->add_url              = $this->getAddUrl();
-        $data->edit_url             = $this->getEditUrl();
-        $data->delete_url           = $this->getDeleteUrl();
-        $data->read_url             = $this->getReadUrl();
-        $data->ajax_list_url        = $this->getAjaxListUrl();
-        $data->ajax_list_info_url   = $this->getAjaxListInfoUrl();
-        $data->export_url           = $this->getExportToExcelUrl();
-        $data->print_url            = $this->getPrintUrl();
-        $data->actions              = $this->actions;
-        $data->unique_hash          = $this->get_method_hash();
-        $data->order_by             = $this->order_by;
-
-        $data->unset_add            = $this->unset_add;
-        $data->unset_edit           = $this->unset_edit;
-        $data->unset_read           = $this->unset_read;
-        $data->unset_delete         = $this->unset_delete;
-        $data->unset_export         = $this->unset_export;
-        $data->unset_print          = $this->unset_print;
-
-        // unset search
         $data->unset_default_search = $this->unset_default_search;
         $data->search_form_components = $this->search_form_components;
+        // end of addtion
 
-        $default_per_page = $this->config->default_per_page;
-        $data->paging_options = $this->config->paging_options;
-        $data->default_per_page     = is_numeric($default_per_page) && $default_per_page >1 && in_array($default_per_page,$data->paging_options)? $default_per_page : 25;
+		$data->success_message		= $this->get_success_message_at_list($state_info);
 
-        if($data->list === false)
-        {
-            throw new Exception('It is impossible to get data. Please check your model and try again.', 13);
-            $data->list = array();
-        }
+		$data->primary_key 			= $this->get_primary_key();
+		$data->add_url				= $this->getAddUrl();
+		$data->edit_url				= $this->getEditUrl();
+		$data->delete_url			= $this->getDeleteUrl();
+        $data->delete_multiple_url	= $this->getDeleteMultipleUrl();
+		$data->read_url				= $this->getReadUrl();
+		$data->ajax_list_url		= $this->getAjaxListUrl();
+		$data->ajax_list_info_url	= $this->getAjaxListInfoUrl();
+		$data->export_url			= $this->getExportToExcelUrl();
+		$data->print_url			= $this->getPrintUrl();
+		$data->actions				= $this->actions;
+		$data->unique_hash			= $this->get_method_hash();
+		$data->order_by				= $this->order_by;
 
-        foreach($data->list as $num_row => $row)
-        {
-            $data->list[$num_row]->edit_url = $data->edit_url.'/'.$row->{$data->primary_key};
-            $data->list[$num_row]->delete_url = $data->delete_url.'/'.$row->{$data->primary_key};
-            $data->list[$num_row]->read_url = $data->read_url.'/'.$row->{$data->primary_key};
-        }
+		$data->unset_add			= $this->unset_add;
+		$data->unset_edit			= $this->unset_edit;
+		$data->unset_read			= $this->unset_read;
+		$data->unset_delete			= $this->unset_delete;
+		$data->unset_export			= $this->unset_export;
+		$data->unset_print			= $this->unset_print;
 
-        if(!$ajax)
-        {
-            $this->_add_js_vars(array('dialog_forms' => $this->config->dialog_forms));
-            $data->list_view = $this->_theme_view('list.php',$data,true);
-            $this->_theme_view('list_template.php',$data);
-        }
-        else
-        {
-            $this->set_echo_and_die();
-            $this->_theme_view('list.php',$data);
-        }
-    }
-    
-    /* Fix issue: http://www.grocerycrud.com/forums/topic/61-default-field-values-for-add-form/ */
+		$default_per_page = $this->config->default_per_page;
+		$data->paging_options = $this->config->paging_options;
+		$data->default_per_page		= is_numeric($default_per_page) && $default_per_page >1 && in_array($default_per_page,$data->paging_options)? $default_per_page : 25;
+
+		if($data->list === false)
+		{
+			throw new Exception('It is impossible to get data. Please check your model and try again.', 13);
+			$data->list = array();
+		}
+
+		foreach($data->list as $num_row => $row)
+		{
+            $data->list[$num_row]->primary_key_value = $row->{$data->primary_key};
+			$data->list[$num_row]->edit_url = $data->edit_url.'/'.$row->{$data->primary_key};
+			$data->list[$num_row]->delete_url = $data->delete_url.'/'.$row->{$data->primary_key};
+			$data->list[$num_row]->read_url = $data->read_url.'/'.$row->{$data->primary_key};
+            // added by gofrendi
+
+            // callback allow edit
+            if($this->callback_show_edit != NULL){
+                $data->list[$num_row]->__show_edit = call_user_func($this->callback_show_edit, $row->{$data->primary_key});
+            }else{
+                $data->list[$num_row]->__show_edit = TRUE;
+            }
+            // callback allow delete
+            if($this->callback_show_delete != NULL){
+                $data->list[$num_row]->__show_delete = call_user_func($this->callback_show_delete, $row->{$data->primary_key});
+            }else{
+                $data->list[$num_row]->__show_delete = TRUE;
+            }
+		}
+
+		if(!$ajax)
+		{
+			$this->_add_js_vars(array('dialog_forms' => $this->config->dialog_forms));
+
+			$data->list_view = $this->_theme_view('list.php',$data,true);
+			$this->_theme_view('list_template.php',$data);
+		}
+		else
+		{
+			$this->set_echo_and_die();
+			$this->_theme_view('list.php',$data);
+		}
+	}
+
+    // OVERRIDE: Fix issue of http://www.grocerycrud.com/forums/topic/61-default-field-values-for-add-form/
     protected function get_add_input_fields($field_values = null)
-    {
-        $fields = $this->get_add_fields();
-        $types  = $this->get_field_types();
+	{
+		$fields = $this->get_add_fields();
+		$types 	= $this->get_field_types();
 
-        $input_fields = array();
+		$input_fields = array();
 
-        foreach($fields as $field_num => $field)
-        {
-            $field_info = $types[$field->field_name];
+		foreach($fields as $field_num => $field)
+		{
+			$field_info = $types[$field->field_name];
 
             // added by gofrendi
             $default_value = isset($field_info->default)? $field_info->default : null;
             // modified by gofrendi
             $field_value = !empty($field_values) && isset($field_values->{$field->field_name}) ? $field_values->{$field->field_name} : $default_value;
 
-            if(!isset($this->callback_add_field[$field->field_name]))
-            {
-                $field_input = $this->get_field_input($field_info, $field_value);
-            }
-            else
-            {
-                $field_input = $field_info;
-                $field_input->input = call_user_func($this->callback_add_field[$field->field_name], $field_value, null, $field_info);
-            }
+			if(!isset($this->callback_add_field[$field->field_name]))
+			{
+				$field_input = $this->get_field_input($field_info, $field_value);
+			}
+			else
+			{
+				$field_input = $field_info;
+				$field_input->input = call_user_func($this->callback_add_field[$field->field_name], $field_value, null, $field_info);
+			}
 
-            switch ($field_info->crud_type) {
-                case 'invisible':
-                    unset($this->add_fields[$field_num]);
-                    unset($fields[$field_num]);
-                    continue;
-                break;
-                case 'hidden':
-                    $this->add_hidden_fields[] = $field_input;
-                    unset($this->add_fields[$field_num]);
-                    unset($fields[$field_num]);
-                    continue;
-                break;
-            }
+			switch ($field_info->crud_type) {
+				case 'invisible':
+					unset($this->add_fields[$field_num]);
+					unset($fields[$field_num]);
+					continue;
+				break;
+				case 'hidden':
+					$this->add_hidden_fields[] = $field_input;
+					unset($this->add_fields[$field_num]);
+					unset($fields[$field_num]);
+					continue;
+				break;
+			}
 
-            $input_fields[$field->field_name] = $field_input;
-        }
+			$input_fields[$field->field_name] = $field_input;
+		}
 
-        return $input_fields;
-    }
+		return $input_fields;
+	}
 
-    /**
-     *
-     * Load the language strings array from the language file
-     */
+    // OVERRIDE: if language file is not found, fallback to english
     protected function _load_language()
-    {
-        if($this->language === null)
-        {
-            $this->language = strtolower($this->config->default_language);
-        }
+	{
+		if($this->language === null)
+		{
+			$this->language = strtolower($this->config->default_language);
+		}
+
+        // modified by gofrendi
         if(file_exists($this->default_language_path.'/'.$this->language.'.php')){
             include($this->default_language_path.'/'.$this->language.'.php');
         }else{
             include($this->default_language_path.'/english.php');
         }
+        // end of modification
 
-        foreach($lang as $handle => $lang_string)
-            if(!isset($this->lang_strings[$handle]))
-                $this->lang_strings[$handle] = $lang_string;
+		foreach($lang as $handle => $lang_string)
+			if(!isset($this->lang_strings[$handle]))
+				$this->lang_strings[$handle] = $lang_string;
 
-        $this->default_true_false_text = array( $this->l('form_inactive') , $this->l('form_active'));
-        $this->subject = $this->subject === null ? $this->l('list_record') : $this->subject;
+		$this->default_true_false_text = array( $this->l('form_inactive') , $this->l('form_active'));
+		$this->subject = $this->subject === null ? $this->l('list_record') : $this->subject;
 
+	}
+
+    // Fix isset unique field problem (isset doesn't work, property_exists work)
+    protected function db_update_validation()
+    {
+        $validation_result = (object)array('success'=>false);
+
+        $field_types = $this->get_field_types();
+        $required_fields = $this->required_fields;
+        $unique_fields = $this->_unique_fields;
+        $edit_fields = $this->get_edit_fields();
+
+        if(!empty($required_fields))
+        {
+            foreach($edit_fields as $edit_field)
+            {
+                $field_name = $edit_field->field_name;
+                if(!isset($this->validation_rules[$field_name]) && in_array( $field_name, $required_fields) )
+                {
+                    $this->set_rules( $field_name, $field_types[$field_name]->display_as, 'required');
+                }
+            }
+        }
+
+
+        /** Checking for unique fields. If the field value is not unique then
+         * return a validation error straight away, if not continue... */
+        if(!empty($unique_fields))
+        {
+            $form_validation = $this->form_validation();
+
+            $form_validation_check = false;
+
+            foreach($edit_fields as $edit_field)
+            {
+                $field_name = $edit_field->field_name;
+                if(in_array( $field_name, $unique_fields) )
+                {
+                    $state_info = $this->getStateInfo();
+                    $primary_key = $this->get_primary_key();
+                    $field_name_value = $_POST[$field_name];
+
+                    $this->basic_model->where($primary_key,$state_info->primary_key);
+                    $row = $this->basic_model->get_row();
+
+                    if(!property_exists($row, $field_name)) {
+                        log_message('error', print_r($row, TRUE));
+                        throw new Exception("The field name doesn't exist in the database. ".
+                                            "Please use the unique fields only for fields ".
+                                            "that exist in the database");
+                    }
+
+                    $previous_field_name_value = $row->$field_name;
+
+                    if(!empty($previous_field_name_value) && $previous_field_name_value != $field_name_value) {
+                        $form_validation->set_rules( $field_name,
+                                $field_types[$field_name]->display_as,
+                                'is_unique['.$this->basic_db_table.'.'.$field_name.']');
+
+                        $form_validation_check = true;
+                    }
+                }
+            }
+
+            if($form_validation_check && !$form_validation->run())
+            {
+                $validation_result->error_message = $form_validation->error_string();
+                $validation_result->error_fields = $form_validation->_error_array;
+
+                return $validation_result;
+            }
+        }
+
+        if(!empty($this->validation_rules))
+        {
+            $form_validation = $this->form_validation();
+
+            $edit_fields = $this->get_edit_fields();
+
+            foreach($edit_fields as $edit_field)
+            {
+                $field_name = $edit_field->field_name;
+                if(isset($this->validation_rules[$field_name]))
+                {
+                    $rule = $this->validation_rules[$field_name];
+                    $form_validation->set_rules($rule['field'],$rule['label'],$rule['rules']);
+                }
+            }
+
+            if($form_validation->run())
+            {
+                $validation_result->success = true;
+            }
+            else
+            {
+                $validation_result->error_message = $form_validation->error_string();
+                $validation_result->error_fields = $form_validation->_error_array;
+            }
+        }
+        else
+        {
+            $validation_result->success = true;
+        }
+
+        return $validation_result;
     }
 
-	/* Extra field types Functions
+    protected function validation_layout($validation_result)
+	{
+		@ob_end_clean();
+        echo str_replace('\\/', '/', json_encode($validation_result));
+		//echo json_encode($validation_result, JSON_UNESCAPED_SLASHES);
+		$this->set_echo_and_die();
+	}
+
+    protected function insert_layout($insert_result = false)
+	{
+		@ob_end_clean();
+		if($insert_result === false)
+		{
+			echo json_encode(array('success' => false));
+		}
+		else
+		{
+			$success_message = '<p>'.$this->l('insert_success_message');
+
+			if(!$this->unset_back_to_list && !empty($insert_result) && !$this->unset_edit)
+			{
+				$success_message .= " <a class='go-to-edit-form' href='".$this->getEditUrl($insert_result)."'>".$this->l('form_edit')." {$this->subject}</a> ";
+
+				if (!$this->_is_ajax()) {
+					$success_message .= $this->l('form_or');
+				}
+			}
+
+			if(!$this->unset_back_to_list && !$this->_is_ajax())
+			{
+				$success_message .= " <a href='".$this->getListUrl()."'>".$this->l('form_go_back_to_list')."</a>";
+
+			}
+
+			$success_message .= '</p>';
+			/*
+			echo json_encode(array(
+					'success' => true ,
+					'insert_primary_key' => $insert_result,
+					'success_message' => htmlentities($success_message),
+					'success_list_url'	=> $this->getListSuccessUrl($insert_result)
+			), JSON_UNESCAPED_SLASHES);
+            */
+            echo str_replace('\\/', '/', json_encode(array(
+					'success' => true ,
+					'insert_primary_key' => $insert_result,
+					'success_message' => htmlentities($success_message),
+					'success_list_url'	=> $this->getListSuccessUrl($insert_result)
+			)));
+		}
+		$this->set_echo_and_die();
+	}
+
+    protected function update_layout($update_result = false, $state_info = null)
+	{
+		@ob_end_clean();
+		if($update_result === false)
+		{
+			echo json_encode(array('success' => $update_result));
+		}
+		else
+		{
+			$success_message = '<p>'.$this->l('update_success_message');
+			if(!$this->unset_back_to_list && !$this->_is_ajax())
+			{
+				$success_message .= " <a href='".$this->getListUrl()."'>".$this->l('form_go_back_to_list')."</a>";
+			}
+			$success_message .= '</p>';
+			/*
+			echo json_encode(array(
+					'success' => true ,
+					'insert_primary_key' => $update_result,
+					'success_message' => htmlentities($success_message),
+					'success_list_url'	=> $this->getListSuccessUrl($state_info->primary_key)
+			), JSON_UNESCAPED_SLASHES);
+			*/
+            echo str_replace('\\/', '/', json_encode(array(
+					'success' => true ,
+					'insert_primary_key' => $update_result,
+					'success_message' => htmlentities($success_message),
+					'success_list_url'	=> $this->getListSuccessUrl($state_info->primary_key)
+			)));
+		}
+		$this->set_echo_and_die();
+	}
+
+    /* Extra field types Functions
      */
 	public function field_type_ext($field , $type, $extras = null){
         if($field && $type){
@@ -412,7 +673,7 @@ class Extended_grocery_crud extends grocery_crud{
                             {
                                 //$this->or_like($search_field, $search_text);
                                 $search_where .= " OR " .
-                                    $this->basic_model->protect_identifiers($search_field). 
+                                    $this->basic_model->protect_identifiers($search_field).
                                     " LIKE '%" . $escaped_text . "%'";
                             }
                         }
@@ -420,7 +681,7 @@ class Extended_grocery_crud extends grocery_crud{
                         {
                             //$this->or_like($temp_relation[$column->field_name], $search_text);
                             $search_where .= " OR " .
-                                    $this->basic_model->protect_identifiers($temp_relation[$column->field_name]). 
+                                    $this->basic_model->protect_identifiers($temp_relation[$column->field_name]).
                                     " LIKE '%" . $escaped_text . "%'";
                         }
                     }
@@ -463,7 +724,7 @@ class Extended_grocery_crud extends grocery_crud{
                         $real_search_field = $search_field_part[count($search_field_part)-1];
                         if(in_array($real_search_field, $actual_columns)){
                             //$this->or_like($basic_table.'.'.$real_search_field, $search_text);
-                            $search_where .= " OR " . 
+                            $search_where .= " OR " .
                                 $this->basic_model->protect_identifiers($basic_table.'.'.$real_search_field).
                                 " LIKE '%" . $escaped_text . "%'";
                         }
@@ -477,108 +738,6 @@ class Extended_grocery_crud extends grocery_crud{
         }
     }
 
-    // fix issue of NULL unique field (it is possible). The property_exists function is more robbust than isset
-    protected function db_update_validation(){
-        $validation_result = (object)array('success'=>false);
-
-        $field_types = $this->get_field_types();
-        $required_fields = $this->required_fields;
-        $unique_fields = $this->_unique_fields;
-        $edit_fields = $this->get_edit_fields();
-
-        if(!empty($required_fields))
-        {
-            foreach($edit_fields as $edit_field)
-            {
-                $field_name = $edit_field->field_name;
-                if(!isset($this->validation_rules[$field_name]) && in_array( $field_name, $required_fields) )
-                {
-                    $this->set_rules( $field_name, $field_types[$field_name]->display_as, 'required');
-                }
-            }
-        }
-
-
-        /** Checking for unique fields. If the field value is not unique then
-         * return a validation error straight away, if not continue... */
-        if(!empty($unique_fields))
-        {
-            $form_validation = $this->form_validation();
-
-            $form_validation_check = false;
-
-            foreach($edit_fields as $edit_field)
-            {
-                $field_name = $edit_field->field_name;
-                if(in_array( $field_name, $unique_fields) )
-                {
-                    $state_info = $this->getStateInfo();
-                    $primary_key = $this->get_primary_key();
-                    $field_name_value = $_POST[$field_name];
-
-                    $this->basic_model->where($primary_key,$state_info->primary_key);
-                    $row = $this->basic_model->get_row();
-
-                    if(!property_exists($row, $field_name)) {
-                        throw new Exception("The field name doesn't exist in the database. ".
-                                            "Please use the unique fields only for fields ".
-                                            "that exist in the database");
-                    }
-
-                    $previous_field_name_value = $row->$field_name;
-
-                    if(!empty($previous_field_name_value) && $previous_field_name_value != $field_name_value) {
-                        $form_validation->set_rules( $field_name,
-                                $field_types[$field_name]->display_as,
-                                'is_unique['.$this->basic_db_table.'.'.$field_name.']');
-
-                        $form_validation_check = true;
-                    }
-                }
-            }
-
-            if($form_validation_check && !$form_validation->run())
-            {
-                $validation_result->error_message = $form_validation->error_string();
-                $validation_result->error_fields = $form_validation->_error_array;
-
-                return $validation_result;
-            }
-        }
-
-        if(!empty($this->validation_rules))
-        {
-            $form_validation = $this->form_validation();
-
-            $edit_fields = $this->get_edit_fields();
-
-            foreach($edit_fields as $edit_field)
-            {
-                $field_name = $edit_field->field_name;
-                if(isset($this->validation_rules[$field_name]))
-                {
-                    $rule = $this->validation_rules[$field_name];
-                    $form_validation->set_rules($rule['field'],$rule['label'],$rule['rules']);
-                }
-            }
-
-            if($form_validation->run())
-            {
-                $validation_result->success = true;
-            }
-            else
-            {
-                $validation_result->error_message = $form_validation->error_string();
-                $validation_result->error_fields = $form_validation->_error_array;
-            }
-        }
-        else
-        {
-            $validation_result->success = true;
-        }
-
-        return $validation_result;
-    }
 
     protected function get_integer_input($field_info,$value)
     {
@@ -593,9 +752,6 @@ class Extended_grocery_crud extends grocery_crud{
 
     protected function get_true_false_input($field_info,$value)
     {
-        $this->set_css($this->default_css_path.'/jquery_plugins/uniform/uniform.default.css');
-        $this->set_js_lib($this->default_javascript_path.'/jquery_plugins/jquery.uniform.min.js');
-        $this->set_js_config($this->default_javascript_path.'/jquery_plugins/config/jquery.uniform.config.js');
 
         $value_is_null = empty($value) && $value !== '0' && $value !== 0 ? true : false;
 
@@ -783,21 +939,20 @@ class Extended_grocery_crud extends grocery_crud{
         return $input;
     }
 
+    // OVERRIDE: add hidden field
     protected function get_readonly_input($field_info, $value)
-    {
-        $read_only_value = "<i>[Not Set]</i>";
-        if ($value === 0 || $value === '0'){
-            $read_only_value = '0';
-        } elseif (!empty($value) && !is_array($value)) {
-            $read_only_value = $value;
-        } elseif (is_array($value)) {
-            $all_values = array_values($value);
-            $read_only_value = implode(", ",$all_values);
-        }
+	{
+		$read_only_value = "&nbsp;";
 
-        return '<div id="field-'.$field_info->name.'" class="readonly_label">'.
-            $read_only_value.'</div>';
-    }
+	    if (!empty($value) && !is_array($value)) {
+	    	$read_only_value = $value;
+    	} elseif (is_array($value)) {
+    		$all_values = array_values($value);
+    		$read_only_value = implode(", ",$all_values);
+    	}
+        return '<div id="field-'.$field_info->name.'" class="readonly_label">'.$read_only_value.
+            "<input id='field-{$field_info->name}' class='form-control' name='{$field_info->name}' type='hidden' value='$read_only_value' /></div>";
+	}
 
     protected function get_set_input($field_info,$value)
     {
@@ -1459,7 +1614,7 @@ class Extended_grocery_crud extends grocery_crud{
                     //base_url('assets/grocery_crud/js/jquery_plugins/jquery.ui.datetime.js'),
                     base_url('assets/grocery_crud/js/jquery_plugins/jquery-ui-timepicker-addon.js'),
                 );
-            
+
             foreach($mandatory_css_files as $mandatory_css_file){
                 if(!in_array($mandatory_css_file, $output->css_files)){
                     $output->css_files[] = $mandatory_css_file;
@@ -1500,14 +1655,14 @@ class Extended_grocery_crud extends grocery_crud{
 
         $other_js = array();
         foreach($output->js_files as $js_file){
-            if(!in_array($js_file, $config_js) && !in_array($js_file, $plugin_js) && 
+            if(!in_array($js_file, $config_js) && !in_array($js_file, $plugin_js) &&
                 !in_array($js_file, $text_editor_js) && !in_array($js_file, $theme_js)){
                 $other_js[] = $js_file;
             }
         }
 
         $output->js_files = array_merge($plugin_js, $theme_js, $text_editor_js, $other_js, $config_js);
-        
+
         return $output;
 	}
 

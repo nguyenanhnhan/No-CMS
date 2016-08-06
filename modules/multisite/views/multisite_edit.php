@@ -1,7 +1,7 @@
 <?php defined('BASEPATH') OR exit('No direct script access allowed');
     $asset = new Cms_asset();
     $asset->add_cms_css('grocery_crud/css/jquery_plugins/chosen/chosen.css');
-    $asset->add_cms_css('grocery_crud/themes/flexigrid/css/flexigrid.css');
+    $asset->add_cms_css('grocery_crud/themes/no-flexigrid/css/flexigrid.css');
     echo $asset->compile_css();
 ?>
 <style type="text/css">
@@ -44,7 +44,7 @@
     echo '</div>';
 
     echo '<div class="form-group">';
-    echo form_label('Aliases', ' for="aliases" class="control-label col-sm-4');
+    echo form_label('Custom Domain / Alias', ' for="aliases" class="control-label col-sm-4');
     echo '<div class="col-sm-8">';
     echo form_input('aliases', $aliases,
         'id="aliases" placeholder="Aliases (comma separated)" class="form-control"');

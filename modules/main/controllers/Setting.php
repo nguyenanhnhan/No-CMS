@@ -4,17 +4,38 @@ class Setting extends CMS_Controller{
     protected $theme = 'neutral';
 
     private function update_static_content($widget_name, $content){
-        $this->db->update(cms_table_name('main_widget'), array('static_content'=>$content), array('widget_name'=>$widget_name));
+        $parsed_content = $this->cms_parse_keyword($content);
+        $no_change = FALSE;
+        $seek_no_longer = FALSE;
+        // see if there are changes
+        $widgets = $this->cms_widgets(NULL, $widget_name);
+        foreach($widgets as $slug => $widget_list){
+            foreach($widget_list as $widget){
+                if($widget['widget_name'] == $widget_name){
+                    if($widget['content'] == $parsed_content){
+                        $no_change = TRUE;
+                    }
+                    $seek_no_longer = TRUE;
+                    break;
+                }
+            }
+            if($seek_no_longer){
+                break;
+            }
+        }
+        // don't change if there is no changes
+        if(!$no_change){
+            $this->db->update(cms_table_name('main_widget'), array('static_content'=>$content), array('widget_name'=>$widget_name));
+        }
     }
 
     public function index(){
-        $this->theme = $this->cms_get_config('site_theme');
 
         // third party authentication setting
         $third_party_variables = array(
             'auth_enable_facebook', 'auth_facebook_app_id', 'auth_facebook_app_secret', 'auth_enable_twitter',
             'auth_twitter_app_key', 'auth_twitter_app_secret', 'auth_enable_google', 'auth_google_app_id',
-            'auth_google_app_secret', 'auth_enable_yahoo', 'auth_yahoo_app_id', 'auth_yahoo_app_secret', 
+            'auth_google_app_secret', 'auth_enable_yahoo', 'auth_yahoo_app_id', 'auth_yahoo_app_secret',
             'auth_enable_linkedin', 'auth_linkedin_app_key', 'auth_linkedin_app_secret', 'auth_enable_myspace',
             'auth_myspace_app_key', 'auth_myspace_app_secret', 'auth_enable_foursquare', 'auth_foursquare_app_id',
             'auth_foursquare_app_secret', 'auth_enable_windows_live', 'auth_windows_live_app_id',
@@ -25,7 +46,7 @@ class Setting extends CMS_Controller{
         }else{
             $hybridauth_config_file = APPPATH.'/config/site-'.CMS_SUBSITE.'/hybridauthlib.php';
         }
-        
+
         // save the uploaded files
         if(isset($_FILES['site_logo'])){
             try{
@@ -34,7 +55,7 @@ class Setting extends CMS_Controller{
                     $file_name = FCPATH.'assets/nocms/images/custom_logo/'.CMS_SUBSITE.$site_logo['name'];
                     move_uploaded_file($site_logo['tmp_name'], $file_name);
                     $this->cms_resize_image($file_name, 800, 125);
-                    $this->cms_set_config('site_logo', '{{ base_url }}assets/nocms/images/custom_logo/'.CMS_SUBSITE.$site_logo['name']);                    
+                    $this->cms_set_config('site_logo', '{{ base_url }}assets/nocms/images/custom_logo/'.CMS_SUBSITE.$site_logo['name']);
                 }
             }catch(Exception $e){
                 // do nothing
@@ -53,6 +74,37 @@ class Setting extends CMS_Controller{
                 // do nothing
             }
         }
+        if($this->input->post('remove_meta_image') == 1){
+            $this->cms_set_config('meta_image', '');
+        }else if(isset($_FILES['meta_image'])){
+            try{
+                $meta_image = $_FILES['meta_image'];
+                if(isset($meta_image['tmp_name']) && $meta_image['tmp_name'] != '' && getimagesize($meta_image['tmp_name']) !== FALSE){
+                    $file_name = FCPATH.'assets/nocms/images/custom_meta_image/'.CMS_SUBSITE.$meta_image['name'];
+                    move_uploaded_file($meta_image['tmp_name'], $file_name);
+                    $this->cms_set_config('meta_image', '{{ base_url }}assets/nocms/images/custom_meta_image/'.CMS_SUBSITE.$meta_image['name']);
+                }
+            }catch(Exception $e){
+                // do nothing
+            }
+        }
+
+
+        if($this->input->post('remove_background_image') == 1){
+            $this->cms_set_config('site_background_image', '');
+        }else if(isset($_FILES['site_background_image'])){
+            try{
+                $site_background_image = $_FILES['site_background_image'];
+                if(isset($site_background_image['tmp_name']) && $site_background_image['tmp_name'] != '' && getimagesize($site_background_image['tmp_name']) !== FALSE){
+                    $file_name = FCPATH.'assets/nocms/images/custom_background/'.CMS_SUBSITE.$site_background_image['name'];
+                    move_uploaded_file($site_background_image['tmp_name'], $file_name);
+                    $this->cms_set_config('site_background_image', '{{ base_url }}assets/nocms/images/custom_background/'.CMS_SUBSITE.$site_background_image['name']);
+                }
+            }catch(Exception $e){
+                // do nothing
+            }
+        }
+
         if(count($_POST)>0){
             // save the section widgets
             $this->update_static_content('section_custom_style', $this->input->post('section_custom_style'));
@@ -66,14 +118,23 @@ class Setting extends CMS_Controller{
             // save configurations
             $configuration_list = array(
                 'site_name', 'site_layout', 'site_slogan', 'site_footer', 'site_language',
+                'site_background_color', 'site_background_position', 'site_background_size',
+                'site_background_repeat', 'site_background_origin', 'site_background_clip',
+                'site_background_attachment', 'site_background_blur', 'site_text_color',
                 'cms_signup_activation', 'cms_email_protocol',
                 'cms_email_reply_address', 'cms_email_reply_name', 'cms_email_forgot_subject',
                 'cms_email_forgot_message', 'cms_email_signup_subject', 'cms_email_signup_message',
                 'cms_email_useragent', 'cms_email_mailpath', 'cms_email_smtp_host', 'cms_email_smtp_user',
                 'cms_email_smtp_pass', 'cms_email_smtp_port', 'cms_email_smtp_timeout',
                 'cms_google_analytic_property_id','cms_internet_connectivity','cms_subsite_configs','cms_subsite_modules',
+                'meta_twitter_card', 'meta_keyword', 'meta_description', 'meta_author', 'meta_type', 'meta_fb_admin',
+                'meta_twitter_publisher_handler', 'meta_twitter_author_handler',
             );
             // only for non-subsite
+            if(CMS_SUBSITE == ''){
+                $configuration_list[] = 'site_show_benchmark';
+                $configuration_list[] = 'site_developer_addr';
+            }
             if(CMS_SUBSITE == '' && $this->cms_is_module_active('gofrendi.noCMS.multisite')){
                 $configuration_list[] = 'cms_add_subsite_on_register';
                 $configuration_list[] = 'cms_subsite_use_subdomain';
@@ -88,6 +149,10 @@ class Setting extends CMS_Controller{
                         continue;
                     }
                     $value = cms_encode($value);
+                }
+                // Don't update configuration if there is no change
+                if($this->cms_get_config($configuration, TRUE) == $value){
+                    continue;
                 }
                 $this->cms_set_config($configuration, $value);
             }
@@ -143,22 +208,8 @@ class Setting extends CMS_Controller{
         }
 
         // layout
-        $layout_list = array();
-        $site_theme = $config_list['site_theme'];
-        $this->load->helper('directory');
-        $files = directory_map('themes/'.$site_theme.'/views/layouts/', 1);
-        sort($files);
-        foreach($files as $file){
-            if(is_dir('themes/'.$site_theme.'/views/layouts/'.$file)){
-                continue;
-            }
-            $file = str_ireplace('.php', '', $file);
-            if($file == $config_list['site_layout']){
-                continue;
-            }
-            $layout_list[] = $file;
-        }
-        
+        $layout_list = $this->cms_get_layout();
+
         // get third_party_configurations
         include($hybridauth_config_file);
         $third_party_config = array();
@@ -166,6 +217,15 @@ class Setting extends CMS_Controller{
             eval('$third_party_config["'.$var.'"] = $'.$var.';');
         }
 
+        // update route
+        if($this->cms_is_module_active('gofrendi.noCMS.multisite')){
+            $module_path = $this->cms_module_path('gofrendi.noCMS.multisite');
+            if(strtoupper($this->cms_get_config('cms_add_subsite_on_register')) == 'TRUE'){
+                $this->cms_add_route('main/register', $module_path.'/multisite/register');
+            }else{
+                $this->cms_remove_route('main/register');
+            }
+        }
 
         $default_controller = $this->cms_get_default_controller();
 
@@ -180,6 +240,8 @@ class Setting extends CMS_Controller{
         $data['multisite_active'] = $this->cms_is_module_active('gofrendi.noCMS.multisite');
         $data['third_party_config'] = $third_party_config;
         $data['changed'] = count($_POST)>0;
+        $data['selected_tab_id'] = isset($_POST['selected_tab_id'])? $_POST['selected_tab_id'] : 'tab-general';
+        $this->cms_invalidate_cache();
         $this->view('setting_index', $data, 'main_setting');
     }
 }

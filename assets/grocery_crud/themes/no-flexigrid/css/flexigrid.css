@@ -392,14 +392,18 @@ div.colCopy {
 }
 div.pGroup {
 	float:left;
-	height:30px;
+	height:60px;
 	margin:0px 5px;
+	display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: row;
 }
 .flexigrid div.pDiv .pPageStat,.flexigrid div.pDiv .pcontrol {
 	position:relative;
 	overflow:visible;
 }
-.flexigrid div.pDiv input {
+.flexigrid div.pDiv input, .flexigrid div.pDiv a {
 	vertical-align:text-top;
 	position:relative;
 	top:-5px;
@@ -527,7 +531,7 @@ textarea.texteditor, textarea.mini-texteditor
 
 .pretty-radio-buttons
 {
-	margin-top: 6px;
+	/*margin-top: 6px;*/
 }
 
 .pretty-radio-buttons label
@@ -562,13 +566,21 @@ textarea.texteditor, textarea.mini-texteditor
     margin-top: 5px;
     margin-bottom: 5px;
 }
+.pretty-radio-buttons div.radio{
+	padding-top:0px!important;
+	min-height:20px;
+}
+.pretty-radio-buttons label{
+	font-weight:inherit;
+	font-size:small;
+}
 @media (min-width: 768px){
     #filtering_form .form-group{
         margin-right:5px;
     }
     .flexigrid input, .flexigrid select{/*
-        width:auto;*/
-        height:auto;
+        width:auto;
+        height:auto;*/
     }
 }
 #ajax_list tbody{
@@ -587,7 +599,7 @@ textarea.texteditor, textarea.mini-texteditor
 }
 
 #crudForm{
-    padding-bottom: 145px;
+    padding-bottom: 255px;
 }
 .chzn-results{
     max-height: 200px!important;
@@ -619,7 +631,9 @@ textarea.texteditor, textarea.mini-texteditor
     .flexigrid table td:first-child,
     .flexigrid table th:first-child,
     .flexigrid table td:last-child,
-    .flexigrid table th:last-child
+    .flexigrid table th:last-child,
+    .flexigrid table td:nth-child(2),
+    .flexigrid table th:nth-child(2)
     {
         display: table-cell!important;
     }
@@ -670,4 +684,15 @@ textarea.texteditor, textarea.mini-texteditor
     {
         display: table-cell!important;
     }
+}
+/* for half width and other custom width */
+@media (min-width: 992px){
+	/*
+	.form-field-box.col-md-1, .form-field-box.col-md-2, .form-field-box.col-md-3, .form-field-box.col-md-4, .form-field-box.col-md-5, .form-field-box.col-md-6, .form-field-box.col-md-7, .form-field-box.col-md-8, .form-field-box.col-md-9, .form-field-box.col-md-10, .form-field-box.col-md-11{
+	    padding-right:0;
+	}
+	*/
+	.last-input-box, .last-form-field-box, .first-form-field-box{
+		padding-right:0!important;
+	}
 }

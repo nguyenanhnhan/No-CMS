@@ -1,6 +1,6 @@
 <?php
-/** application/libraries/MY_Form_validation **/ 
-class MY_Form_validation extends CI_Form_validation 
+/** application/libraries/MY_Form_validation **/
+class MY_Form_validation extends CI_Form_validation
 {
     public $CI;
     public $_field_data         = array();
@@ -12,4 +12,19 @@ class MY_Form_validation extends CI_Form_validation
     public $error_string        = '';
     public $_safe_form_data     = FALSE;
     public $validation_data     = array();
+
+    public function is_unique($str, $field)
+	{
+		sscanf($field, '%[^.].%[^.]', $table, $field);
+         // bypass by gofrendi because isset is not working
+        return $this->CI->db
+ 			? ($this->CI->db->limit(1)->get_where($table, array($field => $str))->num_rows() === 0)
+ 			: FALSE;
+        // TODO: Why is it not working?
+        /*
+        return isset($this->CI->db)
+			? ($this->CI->db->limit(1)->get_where($table, array($field => $str))->num_rows() === 0)
+			: FALSE;
+        */
+	}
 }

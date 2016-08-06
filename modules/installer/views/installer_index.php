@@ -1,4 +1,4 @@
-<?php defined('BASEPATH') OR exit('No direct script access allowed'); ?>
+<?php defined('BASEPATH') OR exit('No direct script access allowed');?>
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
@@ -39,12 +39,12 @@
             font-weight: bold;
         }
     </style>
-    <link rel="stylesheet" type="text/css" href="<?php echo base_url('assets/bootstrap/css/bootstrap.min.css'); ?>" />    
+    <link rel="stylesheet" type="text/css" href="<?php echo base_url('assets/bootstrap/css/bootstrap.min.css'); ?>" />
 </head>
 <body>
     <div class="">
         <div class="navbar navbar-fixed-top navbar-default">
-            <div class="navbar-header"><a class="navbar-brand" href="#">No-CMS Installation Wizard</a></div>          
+            <div class="navbar-header"><a class="navbar-brand" href="#">No-CMS Installation Wizard</a></div>
         </div>
         <div id="div-body" class="tabbable"> <!-- Only required for left/right tabs -->
             <ul class="nav nav-tabs">
@@ -69,11 +69,21 @@
                                 <label class="control-label col-md-3" for="db_protocol">Protocol</label>
                                 <div class="controls col-md-8">
                                      <select id="db_protocol" name="db_protocol" class="input form-control" placeholder="database driver">
-                                         <option value="mysql">MySQL/MariaDB (with mysql driver)</option>
-                                         <option selected="" value="mysqli">MySQL/MariaDB (with mysqli driver)</option>
-                                         <option value="pdo_mysql">MySQL/MariaDB (with PDO driver)</option>
-                                         <option value="pdo_pgsql">PostgreSQL (with PDO driver), Experimental</option>
-                                         <option value="pdo_sqlite">SQLite (with PDO driver), Experimental</option>
+                                        <?php if($mysql_installed){ ?>
+                                            <option value="mysql">MySQL/MariaDB (with mysql driver)</option>
+                                        <?php } ?>
+                                        <?php if($mysqli_installed){ // default to this ?>
+                                            <option selected value="mysqli">MySQL/MariaDB (with mysqli driver)</option>
+                                        <?php } ?>
+                                        <?php if($pdo_mysql_installed){ ?>
+                                            <option value="pdo_mysql">MySQL/MariaDB (with PDO driver)</option>
+                                        <?php } ?>
+                                        <?php if($pdo_pgsql_installed){ ?>
+                                            <option value="pdo_pgsql">PostgreSQL (with PDO driver), Experimental</option>
+                                        <?php } ?>
+                                        <?php if($pdo_sqlite_installed){ ?>
+                                            <option value="pdo_sqlite">SQLite (with PDO driver), Experimental</option>
+                                        <?php } ?>
                                      </select>
                                 </div>
                              </div>
@@ -93,13 +103,13 @@
                              <div class="form-group">
                                 <label class="control-label col-md-3" for="db_username">Username</label>
                                 <div class="controls col-md-8">
-                                    <input type="text" id="db_username" name="db_username" value="root" class="input form-control" placeholder="Database username">                                   
+                                    <input type="text" id="db_username" name="db_username" value="root" class="input form-control" placeholder="Database username">
                                 </div>
                              </div>
                              <div class="form-group">
                                 <label class="control-label col-md-3" for="db_password">Password</label>
                                 <div class="controls col-md-8">
-                                    <input type="password" id="db_password" name="db_password" value="" class="input form-control" placeholder="Database password">                                   
+                                    <input type="password" id="db_password" name="db_password" value="" class="input form-control" placeholder="Database password">
                                 </div>
                              </div>
                              <div class="form-group">
@@ -123,7 +133,7 @@
                         <div class="form-group">
                             <label class="control-label col-md-3" for="admin_email">Super admin's E-mail</label>
                             <div class="controls col-md-8">
-                                <input type="text" id="admin_email" name="admin_email" value="admin@admin.com" class="input form-control" placeholder="Super admin's email">                               
+                                <input type="text" id="admin_email" name="admin_email" value="admin@admin.com" class="input form-control" placeholder="Super admin's email">
                             </div>
                         </div>
                         <div class="form-group">
@@ -498,7 +508,7 @@
             </form>
         </div>
     </div>
-    <script type="text/javascript" src="<?php echo base_url('assets/grocery_crud/js/jquery-1.10.2.min.js'); ?>"></script>
+    <script type="text/javascript" src="<?php echo base_url('assets/grocery_crud/js/'.JQUERY_FILE_NAME); ?>"></script>
     <script type="text/javascript" src="<?php echo base_url('assets/bootstrap/js/bootstrap.min.js'); ?>"></script>
     <script type="text/javascript">
         var REQUEST;
@@ -520,7 +530,7 @@
 
         $(document).ready(function(){
             // just for fun, use one of SCANDAL member as default admin real name
-            var real_name_list = new Array('Haruna Ono', 'Tomomi Ogawa', 
+            var real_name_list = new Array('Haruna Ono', 'Tomomi Ogawa',
                 'Mami Sasazaki', 'Rina Suzuki');
             var real_name_index = Math.floor((Math.random()*4));
             var real_name = real_name_list[real_name_index];
@@ -576,7 +586,7 @@
         });
 
         // from error message
-        $(".a-change-tab").live('click', function(){
+        $('body').on('click', '.a-change-tab', function(){
             var tab = $(this).attr('tab');
             var component = $(this).attr('component');
             $("ul.nav-tabs li").removeClass('active');

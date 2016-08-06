@@ -1,6 +1,5 @@
 <?php
     $column_width = (int)(80/count($columns));
-    $_ci = &get_instance();
     // in the grocerycrud, every configuration should be left blank
     function _escape_template($value){
         $search     = array(
@@ -22,7 +21,7 @@
                 <th width='<?php echo $column_width?>%'>
                     <div class="text-left field-sorting <?php if(isset($order_by[0]) &&  $column->field_name == $order_by[0]){?><?php echo $order_by[1]?><?php }?>"
                         rel='<?php echo $column->field_name?>'>
-                        <?php echo isset($_ci->No_CMS_Model)? $_ci->No_CMS_Model->cms_lang($column->display_as): $column->display_as; ?>
+                        <?php echo $this->cms_lang($column->display_as); ?>
                     </div>
                 </th>
                 <?php }?>
@@ -71,18 +70,37 @@
                     <?php }
                     }
                     ?>
-                    <?php if(!$unset_read){?>
+                    <?php if(!$unset_read){// add "from" to "edit_url"
+                        if(isset($_GET['from'])){
+                            if(strpos($row->read_url, '?') !== FALSE){
+                                $row->read_url .= '&from='.$_GET['from'];
+                            }else{
+                                $row->read_url .= '?from='.$_GET['from'];
+                            }
+                        }
+                        ?>
                         &nbsp;
                         <a href='<?php echo $row->read_url?>' title='<?php echo $this->l('list_view')?> <?php echo $subject?>' class="edit_button btn btn-default">
                               <span class='read-icon'><i class="glyphicon glyphicon-list"></i>&nbsp;<?php echo $this->l('list_view')?></span>
                         </a>
                     <?php }?>
-                    <?php if(!$unset_edit){?>&nbsp;
+                    <?php if(!$unset_edit &&  (!property_exists($row, '__show_edit') || (property_exists($row, '__show_edit') && $row->__show_edit)) ){
+                        // add "from" to "edit_url"
+                    	if(isset($_GET['from'])){
+                            if(strpos($row->edit_url, '&from=') === FALSE && strpos($row->edit_url, '?from=') === FALSE){
+                        		if(strpos($row->edit_url, '?') !== FALSE){
+                        			$row->edit_url .= '&from='.$_GET['from'];
+                        		}else{
+                        			$row->edit_url .= '?from='.$_GET['from'];
+                        		}
+                            }
+                    	}
+                        ?>&nbsp;
                         <a href='<?php echo $row->edit_url?>' title='<?php echo $this->l('list_edit')?> <?php echo $subject?>' class="edit_button btn btn-default">
                               <span class='edit-icon'><i class="glyphicon glyphicon-pencil"></i>&nbsp;<?php echo $this->l('list_edit')?></span>
                         </a>
                     <?php }?>
-                    <?php if(!$unset_delete){?>&nbsp;
+                    <?php if(!$unset_delete && (!property_exists($row, '__show_delete') || (property_exists($row, '__show_delete') && $row->__show_delete)) ){?>&nbsp;
                         <a href='<?php echo $row->delete_url?>' title='<?php echo $this->l('list_delete')?> <?php echo $subject?>' class="delete-row btn btn-default" >
                                 <span class='delete-icon'><i class="glyphicon glyphicon-remove"></i>&nbsp;<?php echo $this->l('list_delete')?></span>
                         </a>

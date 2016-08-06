@@ -1,14 +1,5 @@
 <?php if ( ! defined('BASEPATH')) exit('No direct script access allowed'); ?>
 <style>
-    li.change-theme-container>a{
-        width: 100%;
-        height: 100%;
-        display: block;
-    }
-    li.change-theme-container img{
-        max-width: 128px;
-        height: auto;
-    }
     #message:empty{
         display:none;
     }
@@ -16,13 +7,16 @@
 <h3>{{ language:Change Theme }}</h3>
 <form class="form-inline" action="<?php echo site_url('main/change_theme');?>" method="post" accept-charset="utf-8" style="padding-bottom:20px;">
     <div class="form-group">
-        <input class="form-control" type="text" name="keyword" size="20" placeholder="Keyword" value="<?=$keyword?>" />
+        <input class="form-control" type="text" name="keyword" size="20" placeholder="Keyword" value="<?php echo $keyword; ?>" />
     </div>&nbsp;
     <button type="submit" class="btn btn-primary">Search</button>
 </form>
 <?php
     echo '<div class="row">';
     foreach($themes as $theme){
+        if(!$theme['published']){
+            continue;
+        }
         $style = $theme['used']? 'opacity:0.5; border:none;' : '';
         echo '<div class="col-xs-12 col-sm-6 col-md-4 col-lg-3">';
         echo '<div class="thumbnail" style="'.$style.'">';
@@ -31,7 +25,7 @@
         }
         $image_path = base_url('themes/'.$theme['path'].'/preview.png');
         if(@file_get_contents($image_path,0,NULL,0,1)){
-            echo '<img style="border:1px solid" src="'.$image_path.'" />';
+            echo '<img class="col-md-12" src="'.$image_path.'" />';
         }else{
             echo '{{ language:No Preview }}';
         }
@@ -93,7 +87,7 @@
         __adjust_component('.thumbnail div.caption');
     }
 
-    $(window).load(function(){
+    $(window).on('load', function(){
         adjust_thumbnail();
     });
     $(window).resize(function(){

@@ -1,11 +1,18 @@
 <?php
     $record_index = 0;
 ?>
+<style type="text/css">
+    .sub-caption{
+        min-width : 80px;
+        font-weight : bold;
+        display : inline-block;
+    }
+</style>
 
 <table id="md_table_comments" class="table table-striped table-bordered">
     <thead>
         <tr>
-            <th style="width:300px;">Comment Summary</th>
+            <th style="width:350px;">Comment Summary</th>
             <th style="width:100px;">Action</th>
         </tr>
     </thead>
@@ -19,12 +26,12 @@
 
 <script type="text/javascript">
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////
     // DATA INITIALIZATION
     //
     // * Prepare some global variables
     //
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////
     var DATE_FORMAT = '<?php echo $date_format ?>';
     var OPTIONS = <?php echo json_encode($options); ?>;
     var RECORD_INDEX_comments = <?php echo $record_index; ?>;
@@ -44,84 +51,101 @@
     }
 
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////
     // ADD ROW FUNCTION
     //
     // * When "Add Comment" clicked, this function is called without parameter.
     // * When page loaded for the first time, this function is called with value parameter
     //
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////
     function add_table_row_comments(value){
 
         var component = '<tr id="md_field_comments_tr_'+RECORD_INDEX_comments+'" class="md_field_comments_tr">';
 
-        /////////////////////////////////////////////////////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////////////////////////////
         //    FIELD "date"
-        /////////////////////////////////////////////////////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////////////////////////////
         var comment_date = '';
         if(typeof(value) != 'undefined' && value.hasOwnProperty('date')){
             comment_date = value.date;
         }
-        /////////////////////////////////////////////////////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////////////////////////////
         //    FIELD "name"
-        /////////////////////////////////////////////////////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////////////////////////////
         var comment_name = 'anonymous';
         if(typeof(value) != 'undefined' && value.hasOwnProperty('name')){
             comment_name = value.name;
         }
 
-        /////////////////////////////////////////////////////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////////////////////////////
         //    FIELD "email"
-        /////////////////////////////////////////////////////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////////////////////////////
         var comment_email = '';
         if(typeof(value) != 'undefined' && value.hasOwnProperty('email')){
             comment_email = value.email;
         }
 
 
-        /////////////////////////////////////////////////////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////////////////////////////
         //    FIELD "website"
-        /////////////////////////////////////////////////////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////////////////////////////
         var comment_website = '';
         if(typeof(value) != 'undefined' && value.hasOwnProperty('website')){
             comment_website = value.website;
         }
 
 
-        /////////////////////////////////////////////////////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////////////////////////////
         //    FIELD "content"
-        /////////////////////////////////////////////////////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////////////////////////////
         var comment_content = '';
         if(typeof(value) != 'undefined' && value.hasOwnProperty('content')){
             comment_content = value.content;
         }
+
+        var comment_approved = 0;
+        var caption          = 'Approve';
+        var status           = 'Waiting for Approval';
+        if(typeof(value) != 'undefined' && value.hasOwnProperty('approved')){
+            comment_approved = value.approved;
+            if(comment_approved == 1){
+                caption     = 'Cancel Approval';
+                status      = 'Approved';
+            }
+        }
+
         component += '<td>';
-        component += '<div style="font-size:smaller;">';
-        component += 'author : '+comment_name+', '+comment_date;
+        component += '<div style="margin-bottom:10px;">';
+        component += '<div class="sub-caption">author</div> : '+comment_name+', '+comment_date;
         component += '<br />';
-        component += 'email : '+(comment_email==''?
+        component += '<div class="sub-caption">email</div> : '+(comment_email==''?
           'Not available': '<a href="mailto:'+comment_email+'">'+comment_email+'</a>');
         component += '<br />';
-        component += 'website : '+(comment_website?
-          'Not available': '<a href="'+comment_email+'" target="BLANK">'+comment_website+'</a>');
+        component += '<div class="sub-caption">website</div> : '+(comment_website==''?
+          'Not available': '<a href="'+comment_website+'" target="BLANK">'+comment_website+'</a>');
+        component += '<br />';
+        component += '<div class="sub-caption">approved</div> : <span id="comment_approved_'+RECORD_INDEX_comments+'">'+status;
         component += '</div>';
-        component += '<div style="margin-top:10px; padding-left:10px;">';
+        component += '<div">';
         component += comment_content;
         component += '</div>';
         component += '</td>';
 
 
 
-        /////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        /////////////////////////////////////////////////////////////////////////////
         // Delete Button
-        /////////////////////////////////////////////////////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////////////////////////////
+
         component += '<td>';
-        component += '<input class="md_field_comments_delete btn btn-default" record_index="'+RECORD_INDEX_comments+'" primary_key="" type="button" value="Delete" /></td>';
+        component += '<a class="btn btn-primary toggle_comment_approve" record_index="'+RECORD_INDEX_comments+'" href="#">' + caption + '</a><br /><br />';
+        component += '<input class="md_field_comments_delete btn btn-danger" record_index="'+RECORD_INDEX_comments+'" primary_key="" type="button" value="Delete" /></td>';
         component += '</tr>';
 
-        /////////////////////////////////////////////////////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////////////////////////////
         // Add component to table
-        /////////////////////////////////////////////////////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////////////////////////////
         $('#md_table_comments tbody').append(component);
         mutate_input();
 
@@ -129,7 +153,7 @@
 
 
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////
     // Main event handling program
     //
     // * Initialization
@@ -137,12 +161,12 @@
     // * md_field_comments_delete.click (Delete row)
     // * md_field_comments_col.change (Edit cell)
     //
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////
     $(document).ready(function(){
 
-        /////////////////////////////////////////////////////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////////////////////////////
         // INITIALIZATION
-        /////////////////////////////////////////////////////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////////////////////////////
         synchronize_comments();
         for(var i=0; i<DATA_comments.update.length; i++){
             add_table_row_comments(DATA_comments.update[i].data);
@@ -150,10 +174,10 @@
         }
 
 
-        /////////////////////////////////////////////////////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////////////////////////////
         // md_field_comments_delete.click (Delete row)
-        /////////////////////////////////////////////////////////////////////////////////////////////////////
-        $('.md_field_comments_delete').live('click', function(){
+        /////////////////////////////////////////////////////////////////////////////
+        $('body').on('click', '.md_field_comments_delete', function(){
             var record_index = $(this).attr('record_index');
             // remove the component
             $('#md_field_comments_tr_'+record_index).remove();
@@ -186,13 +210,50 @@
             synchronize_comments();
         });
 
+        $('.toggle_comment_approve').click(function(event){
+            event.preventDefault();
+            var record_index = $(this).attr('record_index');
+            var record_index_found = false;
+            var new_val = 0;
+            for(var i=0; i<DATA_comments.insert.length; i++){
+                if(DATA_comments.insert[i].record_index == record_index){
+                    record_index_found = true;
+                    // insert value
+                    new_val = DATA_comments.insert[i].data.approved == 1 ? 0 : 1;
+                    DATA_comments.insert[i].data.approved = JSON.stringify(new_val);
+                    break;
+                }
+            }
+            if(!record_index_found){
+                for(var i=0; i<DATA_comments.update.length; i++){
+                    if(DATA_comments.update[i].record_index == record_index){
+                        record_index_found = true;
+                        // edit value
+                        new_val = DATA_comments.update[i].data.approved == 1 ? 0 : 1;
+                        DATA_comments.update[i].data.approved = JSON.stringify(new_val);
+                        break;
+                    }
+                }
+            }
+            if(record_index_found){
+                if(new_val == 0){
+                    $(this).html('Approve');
+                    $('#comment_approved_'+record_index).html('Waiting for Approval');
+                }else{
+                    $(this).html('Cancel Approval');
+                    $('#comment_approved_'+record_index).html('Approved');
+                }
+            }
+            synchronize_comments();
+        });
+
 
     });
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////
     // reset field on save
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////
-    $(document).ajaxSuccess(function(event, xhr, settings) {        
+    /////////////////////////////////////////////////////////////////////////
+    $(document).ajaxSuccess(function(event, xhr, settings) {
         if (settings.url == "{{ module_site_url }}manage_article/index/insert") {
             response = $.parseJSON(xhr.responseText);
             if(response.success == true){
@@ -206,9 +267,9 @@
 
 
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////
     // General Functions
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////
 
     // synchronize data to md_real_field_comments_col.
     function synchronize_comments(){

@@ -31,12 +31,11 @@ assets/caches/*.css
 modules/*/config/module_config_*.php
 application/config/main
 application/config/site-*
-application/helpers/cms_extended_login_helper.php
+application/config/tmp/*.php
 /.htaccess
 application/logs/log*.php
 assets/grocery_crud/texteditor/ckeditor/config.js
 assets/kcfinder/config.php
-/site.php
 /hostname.php
 _cache_*.js
 _cache_*.css
@@ -48,27 +47,23 @@ modules/*/assets/db/backup*.sql
 # info module
 modules/*/controllers/Info_*.php
 
+.tags*
+
+# Some pictures
+modules/static_accessories/assets/images/slides/main*.jpg
+modules/static_accessories/assets/images/slides/coba*.jpg
+
 # my private modules
-modules/gis
 modules/typing_defense
-modules/academic
-modules/ssc
-modules/gis_assignment
-modules/library_app
-modules/pmb_online
-modules/town_project
 modules/loanword_searchengine
-modules/year_book
 modules/stiki_ibk
-modules/pendaftaran_wisuda
 modules/library_app
 modules/shop
-modules/pbfrontend
 modules/artificial_intelligence/assets/data/1_*
-modules/beritaduka
-modules/conference
-modules/oepet
-modules/fakebill
-modules/rekam_medik
-modules/breast_cancer
-modules/shop_manager
+modules/simple_erp
+modules/ishare
+modules/lifeline
+modules/sepatu
+modules/indonesia_area
+modules/market
+modules/angkot

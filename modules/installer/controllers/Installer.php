@@ -62,7 +62,16 @@ class Installer extends MX_Controller{
     }
 
     public function index(){
-        $this->load->view('installer/installer_index');
+        $extensions = get_loaded_extensions();
+        $data = array(
+            'php_version'           => phpversion(),
+            'mysql_installed'       => in_array('mysql', $extensions),
+            'mysqli_installed'      => in_array('mysqli', $extensions),
+            'pdo_mysql_installed'   => in_array('pdo_mysql', $extensions),
+            'pdo_pgsql_installed'   => in_array('pdo_pgsql', $extensions),
+            'pdo_sqlite_installed'  => in_array('pdo_sqlite', $extensions)
+        );
+        $this->load->view('installer/installer_index', $data);
     }
 
     public function install(){
@@ -71,15 +80,19 @@ class Installer extends MX_Controller{
         $success = $check_installation['success'];
         $module_installed = FALSE;
         if($success){
+            log_message('debug', 'Start installing main website');
             $this->install_model->build_configuration();
+            log_message('debug', 'Configuration built for main website');
             $this->install_model->build_database();
+            log_message('debug', 'Database built for main website');
             $module_installed = $this->install_model->install_modules();
+            log_message('debug', 'Modules Installed for main website');
         }
         $data['module_installed'] = $module_installed;
         $data['success'] = $success;
         $data['admin_user_name'] = $this->install_model->admin_user_name;
-        $data['admin_password'] = $this->install_model->admin_password;    
-        $this->load->view('installer_install', $data);
+        $data['admin_password'] = $this->install_model->admin_password;
+        $this->load->view('installer/installer_install', $data);
     }
 
 }
