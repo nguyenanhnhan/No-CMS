@@ -61,6 +61,7 @@ class Manage extends CMS_CRUD_Controller {
 
         // get entity and fields
         $entity = $this->cms_get_record($this->t('entity'), 'id', $id_entity);
+        $this->db->order_by('order_index');
         $field_list = $this->cms_get_record_list($this->t('field'), 'id_entity', $id_entity);
         $this->ENTITY = $entity;
         $this->FIELD_LIST = $field_list;
@@ -81,7 +82,7 @@ class Manage extends CMS_CRUD_Controller {
             $this->UNSET_PRINT = TRUE;
             $this->UNSET_EXPORT = TRUE;
         }
- 
+
         // call parent's make_crud
         $crud = parent::make_crud();
 
@@ -227,7 +228,7 @@ class Manage extends CMS_CRUD_Controller {
                 $file_name = $this->randomize_string($file_name).$file_name;
                 $upload_path = FCPATH.'modules/'.$this->cms_module_path().'/assets/uploads/';
                 move_uploaded_file($tmp_name, $upload_path.$file_name);
-                @chmod($upload_path.$file_name, 644);
+                @chmod($upload_path.$file_name, 0744);
                 $post_array[$key] = $file_name;
             }
         }

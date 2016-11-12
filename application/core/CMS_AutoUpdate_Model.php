@@ -3,7 +3,7 @@
 class CMS_AutoUpdate_Model extends CMS_Model
 {
     // TODO: change this
-    private $CURRENT_VERSION = '1.1.2';
+    private $CURRENT_VERSION = '1.1.3';
     private static $module_updated = false;
 
     public function __construct()
@@ -381,7 +381,7 @@ class CMS_AutoUpdate_Model extends CMS_Model
         $this->cms_add_navigation('main_404', '404 Not Found', 'not_found', 1,
                 null, 9, '404 Not found page', null,
                 null, 'default-one-column', null, 1,
-                '<h1>404 Page not found</h1><p>Sorry, the page does not exists.<br /><a class="btn btn-primary" href="{{ site_url }}">Please go back <i class="glyphicon glyphicon-home"></i></a></p>'
+                '<h1>{{ language:404 Page not found }}</h1><p>{{ language:Sorry, the page does not exists. }}<br /><a class="btn btn-primary" href="{{ site_url }}">{{ language:Please go back }} <i class="glyphicon glyphicon-home"></i></a></p>'
             );
     }
 
@@ -690,5 +690,25 @@ class CMS_AutoUpdate_Model extends CMS_Model
         $this->cms_add_config('meta_twitter_author_handler', '', 'Twitter author handler for SEO');
     }
 
+    private function __update_to_1_1_3(){
+        $t_user = $this->cms_user_table_name();
+        $t_group = cms_table_name('main_group');
+        $t_privilege = cms_table_name('main_privilege');
+        $this->cms_adjust_tables(array(
+            $t_user => array(
+                'fields' => array(
+                    'user_name' => array('type' => 'VARCHAR', 'constraint' => 255, 'null' => FALSE),
+                    'email' => array('type' => 'VARCHAR', 'constraint' => 255, 'null' => FALSE)
+                )
+            ),
+            $t_group => array(
+                'fields' => array('group_name' => array('type' => 'VARCHAR', 'constraint' => 255, 'null' => FALSE))
+            ),
+            $t_privilege => array(
+                'fields' => array('privilege_name' => array('type' => 'VARCHAR', 'constraint' => 255, 'null' => FALSE))
+            )
+        ));
+
+    }
     // TODO : Write your upgrade function here (__update_to_x_y_x)
 }
